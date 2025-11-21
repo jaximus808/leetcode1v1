@@ -2,8 +2,8 @@ require('dotenv').config();
 
 const express = require("express");
 
-const connectDB = require('./db'); 
-const { connectKafka, producer } = require('./kafka');
+const connectDB = require('../db'); 
+const { connectKafka, producer } = require('../kafka');
 const app = express();
 app.use(express.json());
 
@@ -12,6 +12,10 @@ connectDB();
 connectKafka().catch(err => {
   console.error("Kafka connection error:", err);
 });
+
+const playerRoutes = require('./routes/player');
+
+app.use('/api/players', playerRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
