@@ -19,15 +19,16 @@ export default function HomePage() {
     return stored && stored.trim().length > 0 ? stored : 'Player'
   }, [])
 
-  const onJoinQueue = useCallback(() => {
-    const matchId = generateMatchId()
-    navigate(`/game/${matchId}`)
-  }, [navigate])
-
+  // preferences must exist before callbacks that capture them
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy')
   const [timeLimit, setTimeLimit] = useState<number>(10)
 
-  // Additional homepage sections (e.g., history/leaderboard) can be reintroduced later
+  const onJoinQueue = useCallback(() => {
+    const matchId = generateMatchId()
+    navigate(`/game/${matchId}?d=${difficulty}&t=${timeLimit}`)
+  }, [navigate, difficulty, timeLimit])
+
+
 
   return (
     <div className="home-container">
@@ -82,11 +83,12 @@ export default function HomePage() {
         </section>
 
         <section className="card start-card">
-          <div className="option-group">
+          <div className="option-group" role="group" aria-label="Difficulty">
             <span className="option-label">Difficulty:</span>
             <div className="difficulty-row">
             <button
               className={`difficulty-btn ${difficulty === 'easy' ? 'active' : ''}`}
+              aria-pressed={difficulty === 'easy'}
               onClick={() => setDifficulty('easy')}
               type="button"
             >
@@ -94,6 +96,7 @@ export default function HomePage() {
             </button>
             <button
               className={`difficulty-btn ${difficulty === 'medium' ? 'active' : ''}`}
+              aria-pressed={difficulty === 'medium'}
               onClick={() => setDifficulty('medium')}
               type="button"
             >
@@ -101,6 +104,7 @@ export default function HomePage() {
             </button>
             <button
               className={`difficulty-btn ${difficulty === 'hard' ? 'active' : ''}`}
+              aria-pressed={difficulty === 'hard'}
               onClick={() => setDifficulty('hard')}
               type="button"
             >
@@ -108,11 +112,12 @@ export default function HomePage() {
             </button>
             </div>
           </div>
-          <div className="option-group">
+          <div className="option-group" role="group" aria-label="Time">
             <span className="option-label">Time:</span>
             <div className="difficulty-row">
               <button
                 className={`difficulty-btn ${timeLimit === 10 ? 'active' : ''}`}
+                aria-pressed={timeLimit === 10}
                 onClick={() => setTimeLimit(10)}
                 type="button"
               >
@@ -120,6 +125,7 @@ export default function HomePage() {
               </button>
               <button
                 className={`difficulty-btn ${timeLimit === 20 ? 'active' : ''}`}
+                aria-pressed={timeLimit === 20}
                 onClick={() => setTimeLimit(20)}
                 type="button"
               >
@@ -127,6 +133,7 @@ export default function HomePage() {
               </button>
               <button
                 className={`difficulty-btn ${timeLimit === 30 ? 'active' : ''}`}
+                aria-pressed={timeLimit === 30}
                 onClick={() => setTimeLimit(30)}
                 type="button"
               >

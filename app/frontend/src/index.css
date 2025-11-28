@@ -1,10 +1,12 @@
+@import './styles/theme.css';
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color-scheme: dark;
-  color: #e5e7eb; /* gray-200 */
-  background-color: #1e1e1e; /* lighter medium-dark gray app background */
+  color: var(--text);
+  background-color: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -28,11 +30,11 @@ body,
 
 a {
   font-weight: 500;
-  color: #d1d5db; /* gray-300 */
+  color: var(--text);
   text-decoration: none;
 }
 a:hover {
-  color: #f3f4f6; /* gray-100 */
+  color: #f3f4f6;
 }
 
 body {
@@ -48,22 +50,23 @@ h1 {
 
 button {
   border-radius: 8px;
-  border: 1px solid #2a2a2a;
+  border: 1px solid var(--border);
   padding: 0.6em 1.2em;
   font-size: 1em;
   font-weight: 600;
   font-family: inherit;
   background-color: #1f1f1f;
-  color: #f3f4f6;
+  color: var(--text);
   cursor: pointer;
   transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.1s ease;
 }
 button:hover {
   border-color: #4b4b4b;
-  background-color: #272727;
+  background-color: var(--hover);
 }
 button:focus,
 button:focus-visible {
-  outline: 2px solid #6b7280; /* gray-500 */
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
 /* Remove light-mode override in favor of persistent dark theme */

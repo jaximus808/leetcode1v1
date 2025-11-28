@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
+import './GamePage.css'
 import Editor from '@monaco-editor/react'
 
 export default function GamePage() {
+  const location = useLocation()
+  const params = new URLSearchParams(location.search)
+  const initialMinutes = Number(params.get('t') ?? 10)
   const languages = [
     { value: 'javascript', label: 'Javascript', monaco: 'javascript' },
     { value: 'typescript', label: 'Typescript', monaco: 'typescript' },
@@ -34,8 +39,8 @@ export default function GamePage() {
     }
   }
   const [code, setCode] = useState<string>(getStarterCode(language))
-  // Timer: start at 10 minutes (600 seconds) and count down to 0
-  const GAME_DURATION_SECONDS = 600
+  // Timer seeded from query param (defaults to 10)
+  const GAME_DURATION_SECONDS = Math.max(1, initialMinutes) * 60
   const [secondsLeft, setSecondsLeft] = useState<number>(GAME_DURATION_SECONDS)
   const alertedRef = useRef<boolean>(false)
 
@@ -86,40 +91,14 @@ export default function GamePage() {
   )
 
   return (
-    <div style={{ display: 'grid', gridTemplateRows: '1fr', minHeight: 'calc(100vh - 56px)' }}>
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(320px, 1fr) 2fr 320px',
-          minHeight: 0
-        }}
-      >
-        <aside
-          style={{
-            minWidth: 0,
-            overflow: 'auto',
-            padding: '16px',
-            borderRight: '1px solid #1f1f1f',
-            background: '#0d0d0d'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h2 style={{ margin: '0 0 6px 0' }}>{problem.title}</h2>
-            <span
-              style={{
-                fontSize: 12,
-                color: '#b3b3b3',
-                border: '1px solid #1f1f1f',
-                borderRadius: 8,
-                padding: '4px 8px',
-                background: '#111'
-              }}
-            >
-              {problem.difficulty}
-            </span>
+    <div className="game-root">
+      <div className="game-main">
+        <aside className="game-left">
+          <div className="problem-head">
+            <h2 className="problem-title">{problem.title}</h2>
+            <span className="problem-badge">{problem.difficulty}</span>
           </div>
-          <p style={{ color: '#c7c7c7' }}>{problem.description}</p>
+          <p className="problem-desc">{problem.description}</p>
           <h3 style={{ margin: '16px 0 8px 0' }}>Constraints</h3>
           <ul style={{ margin: 0, paddingLeft: 18, color: '#bdbdbd' }}>
             {problem.constraints.map((c, i) => (
@@ -129,57 +108,30 @@ export default function GamePage() {
             ))}
           </ul>
           <h3 style={{ margin: '16px 0 8px 0' }}>Examples</h3>
-          <div style={{ display: 'grid', gap: 8 }}>
+          <div className="problem-examples">
             {problem.examples.map((ex, i) => (
-              <div
-                key={i}
-                style={{
-                  border: '1px solid #222',
-                  borderRadius: 8,
-                  padding: 12,
-                  background: '#111'
-                }}
-              >
-                <div style={{ color: '#9ca3af', fontSize: 13 }}>Input</div>
+              <div key={i} className="example">
+                <div className="example-label">Input</div>
                 <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{ex.input}</pre>
                 <div style={{ height: 8 }} />
-                <div style={{ color: '#9ca3af', fontSize: 13 }}>Output</div>
+                <div className="example-label">Output</div>
                 <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{ex.output}</pre>
               </div>
             ))}
           </div>
         </aside>
 
-        <div style={{ minWidth: 0, minHeight: 0, display: 'grid', gridTemplateRows: 'auto 1fr' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              justifyContent: 'space-between',
-              padding: '10px 12px',
-              borderBottom: '1px solid #1f1f1f',
-              background: '#0f0f0f'
-            }}
-          >
+        <div className="editor-col">
+          <div className="editor-toolbar" role="toolbar" aria-label="Editor controls">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label style={{ fontSize: 14, color: '#b3b3b3' }}></label>
+              <label>Language</label>
               <select
+                className="editor-select"
                 value={language}
                 onChange={(e) => {
                   const next = e.target.value as typeof languages[number]['value']
                   setLanguage(next)
                   setCode(getStarterCode(next))
-                }}
-                style={{
-                  background: '#2a2a2a',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: 8,
-                  padding: '8px 10px',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  fontFamily: 'inherit'
                 }}
               >
                 {languages.map((lang) => (
@@ -190,41 +142,12 @@ export default function GamePage() {
               </select>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button
-                type="button"
-                aria-label="Run"
-                style={{
-                  border: 'none',
-                  background: '#2a2a2a',
-                  color: '#ffffff',
-                  width: 36,
-                  height: 36,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 8,
-                  padding: 0,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  fontFamily: 'inherit'
-                }}
-                onClick={() => {}}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
+              <button type="button" aria-label="Run" className="icon-btn" onClick={() => {}}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M8 5v14l11-7z" />
                 </svg>
               </button>
-              <button
-                type="button"
-                style={{ border: 'none', background: '#2a2a2a', color: '#ffffff', height: 36, padding: '0 12px', borderRadius: 8, fontSize: 14, fontWeight: 600, fontFamily: 'inherit' }}
-                onClick={() => {}}
-              >
+              <button type="button" className="action-btn" onClick={() => {}}>
                 Submit
               </button>
             </div>
@@ -247,26 +170,8 @@ export default function GamePage() {
             }}
           />
         </div>
-        <aside
-          style={{
-            minWidth: 0,
-            borderLeft: '1px solid #1f1f1f',
-            background: '#0d0d0d',
-            display: 'grid',
-            gridTemplateRows: 'auto 1fr',
-            maxHeight: '100%',
-            minHeight: 0
-          }}
-        >
-          <div
-            style={{
-              padding: 12,
-              borderBottom: '1px solid #1f1f1f',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8
-            }}
-          >
+        <aside className="right-col">
+          <div className="timer-bar">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="18"
@@ -284,61 +189,31 @@ export default function GamePage() {
             </svg>
             <span style={{ fontWeight: 700, color: '#e5e7eb', fontSize: '1.5em' }}>{formattedTime}</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateRows: 'auto 1fr', minHeight: 0 }}>
-            <div style={{ padding: 12, borderBottom: '1px solid #1f1f1f' }}>
-              <div style={{ display: 'grid', gap: 10 }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ color: '#cfcfcf' }}>You</span>
-                    <span style={{ color: '#9ca3af', fontSize: 12 }}>0 / 10 tests</span>
-                  </div>
-                  <div style={{ height: 8, background: '#141414', borderRadius: 6, overflow: 'hidden', border: '1px solid #202020' }}>
-                    <div style={{ width: '0%', height: '100%', background: '#2563eb' }} />
-                  </div>
+          <div className="status-wrap">
+            <div className="status-box">
+              <div className="progress-item">
+                <div className="progress-head">
+                  <span style={{ color: '#cfcfcf' }}>You</span>
+                  <span style={{ color: '#9ca3af', fontSize: 12 }}>0 / 10 tests</span>
                 </div>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ color: '#cfcfcf' }}>Opponent</span>
-                    <span style={{ color: '#9ca3af', fontSize: 12 }}>0 / 10 tests</span>
-                  </div>
-                  <div style={{ height: 8, background: '#141414', borderRadius: 6, overflow: 'hidden', border: '1px solid #202020' }}>
-                    <div style={{ width: '0%', height: '100%', background: '#16a34a' }} />
-                  </div>
+                <div className="progress-track"><div className="progress-fill-you" /></div>
+              </div>
+              <div className="progress-item">
+                <div className="progress-head">
+                  <span style={{ color: '#cfcfcf' }}>Opponent</span>
+                  <span style={{ color: '#9ca3af', fontSize: 12 }}>0 / 10 tests</span>
                 </div>
-                {/* Timer is shown in the panel header */}
+                <div className="progress-track"><div className="progress-fill-op" /></div>
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateRows: 'auto 1fr auto', minHeight: 0 }}>
-              <div style={{ padding: 12, borderBottom: '1px solid #1f1f1f' }}>
+            <div className="chat-wrap">
+              <div className="chat-head">
                 <h3 style={{ margin: 0 }}>Chat</h3>
               </div>
-              <div
-                style={{
-                  minHeight: 0,
-                  overflow: 'auto',
-                  padding: 12,
-                  display: 'grid',
-                  gap: 8
-                }}
-              >
-                {/* messages will render here */}
-              </div>
-              <div style={{ padding: 12, borderTop: '1px solid #1f1f1f', display: 'flex', gap: 8 }}>
-                <input
-                  disabled
-                  placeholder="Message (disabled - not implemented)"
-                  style={{
-                    flex: 1,
-                    padding: '10px 12px',
-                    borderRadius: 10,
-                    border: '1px solid #2a2a2a',
-                    background: '#111',
-                    color: '#e5e7eb'
-                  }}
-                />
-                <button disabled style={{ background: '#262626', borderColor: '#3a3a3a' }}>
-                  Send
-                </button>
+              <div className="chat-body">{/* messages will render here */}</div>
+              <div className="chat-input">
+                <input disabled placeholder="Message (disabled - not implemented)" />
+                <button disabled>Send</button>
               </div>
             </div>
           </div>

@@ -3,7 +3,7 @@
   display: grid;
   align-items: start;
   justify-content: stretch;
-  background: radial-gradient(1000px 600px at 10% 10%, #222222 0%, #1e1e1e 60%) no-repeat;
+  background: radial-gradient(1000px 600px at 10% 10%, var(--bg-soft) 0%, var(--bg) 60%) no-repeat;
 }
 
 .home-shell {
@@ -69,8 +69,9 @@
   cursor: pointer;
   width: 100%;
 }
-.left-nav-item:hover {
-  background: #2a2a2a; /* lighter gray on hover */
+.left-nav-item:hover,
+.left-nav-item:focus-visible {
+  background: var(--hover);
   border-color: #2a2a2a;
 }
 .left-nav-item.settings {
@@ -102,7 +103,7 @@
 
 .home-card {
   width: min(680px, 92vw);
-  background: #2a2a2a;
+  background: var(--card);
   border: none;
   border-radius: 12px;
   padding: 32px 28px;
@@ -118,7 +119,7 @@
 }
 
 .start-card {
-  background: #2a2a2a;
+  background: var(--card);
 }
 
 .profile-header {
@@ -136,8 +137,8 @@
   display: grid;
   place-items: center;
   font-weight: 700;
-  color: #e5e7eb;
-  border: 1px solid #2a2a2a;
+  color: var(--text);
+  border: 1px solid var(--border-2);
 }
 
 .profile-meta {
@@ -252,14 +253,15 @@
 .difficulty-btn {
   flex: 1 1 0;
   padding: 10px 12px;
-  background: #2a2a2a;
-  color: #e5e7eb;
+  background: var(--card);
+  color: var(--text);
   border: none;
   border-radius: 10px;
   font-weight: 700;
 }
-.difficulty-btn:hover {
-  background: #3a3a3a;
+.difficulty-btn:hover,
+.difficulty-btn:focus-visible {
+  background: var(--hover);
 }
 .difficulty-btn.active {
   background: #404040;
@@ -273,7 +275,7 @@
   padding: 18px 28px;
   border-radius: 12px;
   border: none;
-  background: #d3aa40; /* darker gold */
+  background: var(--gold);
   color: #ffffff;
   font-weight: 900;
   font-size: 28px;
@@ -281,7 +283,7 @@
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
 }
 .start-cta-gold:hover {
-  background: #d7b545; /* lighter gold on hover */
+  background: var(--gold-hover);
 }
 
 /* Start card title tweaks */
@@ -303,7 +305,7 @@
 }
 
 .card {
-  background: #2a2a2a;
+  background: var(--card);
   border: none;
   border-radius: 12px;
   padding: 20px 18px;
@@ -327,15 +329,15 @@
   padding: 14px;
   border: none;
   border-radius: 12px;
-  background: #2a2a2a;
-  color: #e5e7eb;
+  background: var(--card);
+  color: var(--text);
   text-align: left;
   cursor: pointer;
   transition: transform 120ms ease, border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
 }
 .qa-tile:hover {
   transform: translateY(-1px);
-  background: #3a3a3a;
+  background: var(--hover);
   border-color: #2a2a2a;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
 }

@@ -1,11 +1,12 @@
-.auth-root {
-  min-height: calc(100vh - 56px);
+/* Signup page scoped styles */
+.signup-container {
   display: grid;
   place-items: center;
+  min-height: calc(100vh - 56px);
   padding: 16px;
 }
 
-.auth-card {
+.signup-card {
   width: min(420px, 92vw);
   background: #111;
   border: 1px solid #222;
@@ -14,16 +15,16 @@
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
 }
 
-.auth-title {
+.signup-title {
   margin: 0 0 8px 0;
 }
 
-.auth-subtitle {
+.signup-sub {
   margin: 0 0 16px 0;
   color: #b3b3b3;
 }
 
-.auth-google {
+.google-btn {
   width: 100%;
   display: inline-flex;
   align-items: center;
@@ -34,10 +35,6 @@
   border: 1px solid #3a3a3a;
   background: #1f1f1f;
   color: #f5f5f5;
-}
-
-.auth-google:hover {
-  background: #262626;
 }
 
 

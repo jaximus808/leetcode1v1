@@ -7,11 +7,11 @@ export default function SignupPage() {
     // Google OAuth not implemented yet
   }
   return (
-    <div className="auth-root">
-      <div className="auth-card">
-        <h1 className="auth-title">Create your account</h1>
-        <p className="auth-subtitle">Continue with Google to sign up.</p>
-        <button onClick={onGoogleClick} aria-label="Continue with Google" className="auth-google">
+    <div className="signup-container">
+      <div className="signup-card">
+        <h1 className="signup-title">Create your account</h1>
+        <p className="signup-sub">Continue with Google to sign up.</p>
+        <button onClick={onGoogleClick} aria-label="Continue with Google" className="google-btn">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48">
             <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 31.9 29.3 35 24 35c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 6 1.1 8.2 3l5.7-5.7C34.6 3.1 29.6 1 24 1 11.8 1 2 10.8 2 23s9.8 22 22 22 22-9.8 22-22c0-1.5-.2-3-.4-4.5z"/>
             <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.4 16.8 18.8 14 24 14c3.1 0 6 1.1 8.2 3l5.7-5.7C34.6 7.1 29.6 5 24 5c-7.4 0-13.7 4.1-17 10z"/>
