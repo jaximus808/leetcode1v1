@@ -1,0 +1,88 @@
+.nav-root {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  box-sizing: border-box;
+  z-index: 100;
+  background: #0f0f0fcc;
+  backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-inner {
+  width: 100%;
+  margin: 0;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  overflow-x: auto;
+}
+
+.nav-brand .nav-logo {
+  text-decoration: none;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.nav-brand-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-logo-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.nav-links {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.nav-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.nav-link {
+  text-decoration: none;
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+.nav-link:hover {
+  background: var(--panel);
+}
+
+.nav-link.active {
+  color: #ffffff;
+  background: var(--card);
+}
+
+.nav-cta {
+  text-decoration: none;
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--border-2);
+}
+.nav-cta:hover {
+  background: var(--hover);
+  border-color: var(--border-2);
+}
+.nav-cta.active {
+  background: var(--hover);
+}
+
+
