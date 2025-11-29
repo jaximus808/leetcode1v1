@@ -152,7 +152,10 @@ router.post('/login', async (req, res) => {
 
     // Don't send password back
     delete data.password;
-    res.json({ message: 'Login successful', player: data });
+    const { generateToken } = require('../middleware/auth');
+    const token = generateToken(data);
+    res.json({ message: 'Login successful', player: data, token });
+
   } catch (err) {
     res.status(500).json({ message: 'Error logging in', error: err.message });
   }
