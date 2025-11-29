@@ -1,9 +1,18 @@
 require('dotenv').config();
 
 const express = require("express");
+const cors = require('cors');
 const { connectKafka, producer } = require('./kafka');
 
 const app = express();
+
+app.use(cors({
+  origin: 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 app.use(express.json());
 
 // Test Supabase connection
