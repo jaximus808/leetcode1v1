@@ -45,7 +45,7 @@ router.get('/pending', authenticateToken, async (req, res) => {
       .order('created_at', { ascending: false })
       .limit(1)
       .single()
-      
+
     if (error && error.code !== 'PGRST116') throw error;
 
     res.json(data || null);
@@ -131,6 +131,7 @@ router.get('/player/:playerId', async (req, res) => {
 });
 
 // POST request a match (sends to Kafka)
+// JAXON: Moving this into websocket flow
 router.post('/request', async (req, res) => {
   try {
     const { player_id } = req.body;
@@ -163,7 +164,7 @@ router.post('/request', async (req, res) => {
       }]
     });
 
-    res.json({ 
+    res.json({
       message: 'Match request sent to matchmaker',
       player: player
     });
