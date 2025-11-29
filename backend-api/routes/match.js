@@ -1,7 +1,58 @@
+const { authenticateToken } = require('../middleware/auth');
 const express = require('express');
 const router = express.Router();
 const supabase = require('../supabase');
 const { producer } = require('../kafka');
+
+// GET /api/matches/my-matches
+router.get('/my-matches', authenticateToken, async (req, res) => {
+  try {
+    const playerId = req.user.id;
+    const { data, error } = await supabase
+      .from('matches')
+      .select(`
+        *,
+        player1:players!player1_id(id, username, elo),
+        player2:players!player2_id(id, username, elo),
+        problem:problems(id, title, difficulty)
+      `)
+      .or(`player1_id.eq.${playerId},player2_id.eq.${playerId}`)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching matches', error: err.message });
+  }
+});
+
+// GET /api/matches/match/pending
+router.get('/pending', authenticateToken, async (req, res) => {
+  try {
+    const playerId = req.user.id;
+
+    const { data, error } = await supabase
+      .from('matches')
+      .select(`
+        *,
+        player1:players!player1_id(id, username, elo),
+        player2:players!player2_id(id, username, elo),
+        problem:problems(id, title, difficulty)
+      `)
+      .or(`player1_id.eq.${playerId},player2_id.eq.${playerId}`)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+      
+    if (error && error.code !== 'PGRST116') throw error;
+
+    res.json(data || null);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching pending match', error: err.message });
+  }
+});
 
 // GET all matches
 router.get('/', async (req, res) => {

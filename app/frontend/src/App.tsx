@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { MatchProvider } from './contexts/MatchContext'
 import HomePage from './pages/Home/homepage'
 import GamePage from './pages/Game/GamePage'
 import LoginPage from './pages/Auth/LoginPage'
@@ -10,17 +11,19 @@ import './App.css'
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Navbar />
-      <ErrorBoundary>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/game/:matchId" element={<GamePage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </ErrorBoundary>
-    </BrowserRouter>
+    <MatchProvider>
+      <BrowserRouter>
+        <Navbar />
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/game/:matchId" element={<GamePage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </ErrorBoundary>
+      </BrowserRouter>
+    </MatchProvider>
   )
 }

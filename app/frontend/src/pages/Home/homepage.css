@@ -488,4 +488,74 @@
   text-align: right;
 }
 
+.queue-status {
+  margin-top: 16px;
+  padding: 16px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.queue-position,
+.queue-eta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.queue-label {
+  color: #9ca3af;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.queue-value {
+  color: #3b82f6;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* Spinner animation */
+.spinner-small {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Cancel button */
+.cancel-search-btn {
+  margin-top: 12px;
+  padding: 10px 24px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.cancel-search-btn:hover {
+  background: #dc2626;
+}
+
+/* Disabled state for find match button */
+.start-cta-gold:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 
