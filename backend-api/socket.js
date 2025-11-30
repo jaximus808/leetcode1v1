@@ -77,6 +77,8 @@ export default function MakeSocketIOInstance(app) {
             value: JSON.stringify({
               player_id: player.id,
               elo_rank: player.elo,
+              difficulty: difficulty,
+              time: time,
               timestamp: Date.now()
             })
           }]
