@@ -83,7 +83,7 @@ export default function MakeSocketIOInstance(app) {
         });
 
         currentPlayerId = playerID
-        socket.join(`queue-${playerID}`)
+        socket.join(`player-${playerID}`)
       } catch (error) {
         socket.emit('queue-error', { msg: "not authorized" });
       }
