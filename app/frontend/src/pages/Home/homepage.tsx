@@ -1,32 +1,30 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../contexts/AuthContext'
+import { useMatch } from '../../contexts/MatchContext'
 import './homepage.css'
-
-function generateMatchId(): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
-  let id = ''
-  for (let i = 0; i < 8; i++) {
-    id += chars[Math.floor(Math.random() * chars.length)]
-  }
-  return id
-}
 
 export default function HomePage() {
   const navigate = useNavigate()
+  const { isAuthenticated, player } = useAuth()
+  const { isSearching, queuePosition, queueEta, findMatch, cancelSearch } = useMatch()
 
   const username = useMemo(() => {
     const stored = typeof window !== 'undefined' ? window.localStorage.getItem('username') : null
     return stored && stored.trim().length > 0 ? stored : 'Player'
-  }, [])
+  }, [isAuthenticated, player])
 
   // preferences must exist before callbacks that capture them
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy')
   const [timeLimit, setTimeLimit] = useState<number>(10)
 
   const onJoinQueue = useCallback(() => {
-    const matchId = generateMatchId()
-    navigate(`/game/${matchId}?d=${difficulty}&t=${timeLimit}`)
-  }, [navigate, difficulty, timeLimit])
+    if (!isAuthenticated) {
+      navigate('/login')
+      return
+    }
+    findMatch()  //call the actual matchmaking system
+  }, [isAuthenticated, navigate, findMatch])
 
 
 
@@ -142,9 +140,39 @@ export default function HomePage() {
             </div>
           </div>
           <div className="start-cta-row">
-            <button className="start-cta-gold" onClick={onJoinQueue} type="button">
-              Find a Match
+            <button className="start-cta-gold" onClick={onJoinQueue} type="button" disabled={isSearching}>
+              {isSearching ? (
+                <>
+                  <span className="spinner-small"></span>
+                  Searching...
+                </>
+              ) : (
+                'Find a Match'
+              )}
             </button>
+            {isSearching && queuePosition !== null && (
+                <div className="queue-status">
+                  <div className="queue-position">
+                    <span className="queue-label">Queue Position:</span>
+                    <span className="queue-value">#{queuePosition}</span>
+                  </div>
+                  {queueEta && (
+                    <div className="queue-eta">
+                      <span className="queue-label">Est. wait:</span>
+                      <span className="queue-value">{queueEta}s</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {isSearching && (
+                <button 
+                  className="cancel-search-btn" 
+                  onClick={cancelSearch}
+                  type="button"
+                >
+                  Cancel Search
+                </button>
+              )}
           </div>
         </section>
 
