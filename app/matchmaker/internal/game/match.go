@@ -1,7 +1,17 @@
 package game
 
 type Match struct {
-	MatchID   string   `json:"match_id"`
 	PlayerIDs []string `json:"player_ids"`
 	CreatedAt int64    `json:"created_at"`
+}
+
+type MatchGroup struct {
+	Difficulty   string   `json:"difficulty"`
+	TimeDuration string   `json:"time_duration"`
+	Matches      []*Match `json:"matches"`
+}
+
+type MatchBatch struct {
+	Groups    []*MatchGroup `json:"groups"`
+	CreatedAt int64         `json:"created_at"`
 }

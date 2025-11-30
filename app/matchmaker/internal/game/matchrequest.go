@@ -3,9 +3,11 @@ package game
 import "github.com/google/btree"
 
 type MatchRequest struct {
-	PlayerID  string `json:"player_id"`
-	EloRank   int    `json:"elo_rank"`
-	Timestamp int64  `json:"timestamp"`
+	PlayerID   string `json:"player_id"`
+	EloRank    int    `json:"elo_rank"`
+	Difficulty string `json:"difficulty"`
+	MatchTime  string `json:"time"`
+	Timestamp  int64  `json:"timestamp"`
 }
 
 func (mr *MatchRequest) Less(than btree.Item) bool {
