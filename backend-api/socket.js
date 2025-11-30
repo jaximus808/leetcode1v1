@@ -1,10 +1,11 @@
 const jwt = require('jsonwebtoken');
 const { Server } = require("socket.io")
 const supabase = require('./supabase');
+const http = require('http');
 
 const getPlayerIdFromToken = (token) => {
   try {
-    const user = jwt.verify(token, process.env.JWT_TOKEN);
+    const user = jwt.verify(token, process.env.JWT_SECRET);
     return user.playerid;
   } catch (err) {
     return null;
@@ -17,7 +18,7 @@ const getPlayerIdFromToken = (token) => {
  * @param { import('express').Express } app - The Express application. 
  * @returns {import('socket.io').Server} - The Socket.IO server instance.
   */
-export default function MakeSocketIOInstance(app) {
+function MakeSocketIOInstance(app) {
 
   const server = http.createServer(app);
 
@@ -127,8 +128,10 @@ export default function MakeSocketIOInstance(app) {
       cancelQueue()
     });
   });
-  return io
+  return {io, server}
 }
+
+module.exports = MakeSocketIOInstance;
 
 
 
