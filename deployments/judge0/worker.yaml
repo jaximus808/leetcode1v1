@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: judge0-worker
+  namespace: judge0
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: judge0-worker
+  template:
+    metadata:
+      labels:
+        app: judge0-worker
+    spec:
+      containers:
+        - name: worker
+          image: judge0/judge0:latest
+          command: ["./scripts/workers"]
+          env:
+            - name: API_URL
+              value: "http://judge0-api.judge0.svc.cluster.local:2358"
+          envFrom:
+            - secretRef:
+                name: judge0-conn

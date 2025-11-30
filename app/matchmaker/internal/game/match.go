@@ -5,3 +5,4 @@ type Match struct {
 	PlayerIDs []string `json:"player_ids"`
 	CreatedAt int64    `json:"created_at"`
 }
+
