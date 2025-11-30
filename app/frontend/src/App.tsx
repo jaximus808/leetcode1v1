@@ -8,9 +8,11 @@ import Navbar from './components/layout/Navbar'
 import NotFoundPage from './pages/NotFoundPage'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import './App.css'
+import { AuthProvider } from './contexts/AuthContext'
 
 export default function App() {
   return (
+    <AuthProvider>
     <MatchProvider>
       <BrowserRouter>
         <Navbar />
@@ -25,5 +27,6 @@ export default function App() {
         </ErrorBoundary>
       </BrowserRouter>
     </MatchProvider>
+    </AuthProvider>
   )
 }
