@@ -8,7 +8,7 @@ const { connectKafka, producer } = require('./kafka');
 const MakeSocketIOInstance = require('./socket')
 
 const app = express()
-const io = MakeSocketIOInstance(app)
+const {io, server} = MakeSocketIOInstance(app)
 app.set('io', io)
 
 app.use(cors({
