@@ -1,15 +1,158 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
+import { createClient } from "@supabase/supabase-js";
 
-export async function submit(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-    context.log(`Http function processed request for url "${request.url}"`);
+const JUDGE0_URL = process.env.JUDGE0_URL || "http://localhost:2358";
+const SUPABASE_URL = process.env.SUPABASE_URL!;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const name = request.query.get('name') || await request.text() || 'world';
-
-    return { body: `Hello, ${name}!` };
+const LANG: Record<string, number> = {
+  javascript: 63,
+  typescript: 74,
+  python: 71,
+  java: 62,
+  c: 50,
+  cpp: 54,
+  csharp: 51
 };
 
-app.http('submit', {
-    methods: ['GET', 'POST'],
-    authLevel: 'anonymous',
-    handler: submit
+function normalize(s: string | null | undefined) {
+  return (s ?? "").trim().replace(/\r\n/g, "\n");
+}
+function expectedAsString(t: any) {
+    const v = (t && t.expected !== undefined) ? t.expected : t?.output;
+    return typeof v === "string" ? v : JSON.stringify(v ?? "");
+}
+function canonicalize(s: string) {
+    const t = (s ?? "").trim();
+    try {
+      // If it's JSON (arrays/objects/numbers/booleans), normalize formatting
+      return JSON.stringify(JSON.parse(t));
+    } catch {
+      // Not JSON -> compare trimmed string as-is
+      return t;
+    }
+}
+function wrapSource(language: string, user: string) {
+  const lang = language.toLowerCase();
+
+  if (lang === "javascript" || lang === "typescript") {
+    return `${user}
+(function(){
+  const fs = require('fs');
+  const data = fs.readFileSync(0, 'utf8').trim();
+  const input = data ? JSON.parse(data) : null;
+  const out = (typeof solve === 'function') ? solve(input) : null;
+  process.stdout.write(typeof out === 'string' ? out : JSON.stringify(out ?? ""));
+})();`;
+  }
+
+  if (lang === "python") {
+    return `${user}
+import sys, json
+def _main():
+    data = sys.stdin.read().strip()
+    inp = json.loads(data) if data else None
+    out = solve(inp)
+    if isinstance(out, str):
+        sys.stdout.write(out)
+    else:
+        sys.stdout.write(json.dumps(out if out is not None else ""))
+if __name__ == "__main__":
+    _main()`;
+  }
+
+  // For other languages, expect a full program for now.
+  return user;
+}
+
+async function runSingleTest(language_id: number, source_code: string, stdin: string) {
+  const url = `${JUDGE0_URL}/submissions?base64_encoded=false&wait=true`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ language_id, source_code, stdin })
+    });
+  } catch (err: any) {
+    return { status: 0, body: null, raw: null, error: String(err) };
+  }
+  const text = await res.text();
+  let body: any = null;
+  try { body = text ? JSON.parse(text) : null; } catch { /* keep raw */ }
+  return { status: res.status, body, raw: text };
+}
+
+async function getJSONFromStorage(bucket: string, key: string) {
+  const dl = await supabase.storage.from(bucket).download(key);
+  if (dl.error) throw new Error(`storage download failed: ${dl.error.message}`);
+  if (!dl.data) throw new Error(`storage download failed: empty body for ${bucket}/${key}`);
+  const text = await dl.data.text();
+  return JSON.parse(text);
+}
+
+export async function submit(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+  try {
+    const { problemId, language, sourceCode } = await request.json() as {
+      problemId: string; language: string; sourceCode: string;
+    };
+
+    if (!problemId || !language || !sourceCode) {
+      return { status: 400, jsonBody: { error: "Missing problemId, language, or sourceCode" } };
+    }
+    const language_id = LANG[language.toLowerCase()];
+    if (!language_id) return { status: 400, jsonBody: { error: "Unsupported language" } };
+
+    // Get filenames for this problem
+    const { data: prob, error: perr } = await supabase
+      .from("problems")
+      .select("test_case_path")
+      .eq("id", problemId)
+      .single();
+    if (perr) return { status: 500, jsonBody: { error: "Failed to fetch problem", detail: perr.message } };
+
+    // Download full tests from 'test-cases' bucket
+    const tc = await getJSONFromStorage("test-cases", prob.test_case_path);
+
+    let tests: Array<{ input: any; output: any }> = [];
+    if (Array.isArray(tc)) {
+      tests = tc;
+    } else if (tc?.tests) {
+      tests = tc.tests;
+    } else if (tc?.samples) {
+      tests = tc.samples;
+    }
+
+    if (!tests.length) return { status: 200, jsonBody: { passed: 0, total: 0, verdict: "No tests" } };
+
+    const program = wrapSource(language, sourceCode);
+    let passed = 0;
+    const details: Array<Record<string, unknown>> = [];
+
+    for (const t of tests) {
+      const stdin = JSON.stringify(t.input ?? null);
+      const r = await runSingleTest(language_id, program, stdin);
+
+      const statusDesc = r.body?.status?.description ?? "Unknown";
+      const out = canonicalize(r.body?.stdout ?? "");
+      const exp = canonicalize(expectedAsString(t));
+      const ok = r.status === 201 && statusDesc === "Accepted" && out === exp;
+      if (ok) passed++;
+      details.push({ status: statusDesc, ok });
+    
+    }
+
+    const verdict = passed === tests.length ? "Accepted" : "Wrong Answer";
+    return { status: 200, jsonBody: { passed, total: tests.length, verdict, details } };
+  } catch (e: any) {
+    context.error(e);
+    return { status: 500, jsonBody: { error: "Internal error", detail: String(e?.message ?? e) } };
+  }
+}
+
+app.http("submit", {
+  methods: ["POST"],
+  authLevel: "anonymous",
+  handler: submit
 });
