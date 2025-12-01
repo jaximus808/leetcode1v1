@@ -6,6 +6,7 @@ const kafka = new Kafka({
   brokers: ["localhost:9092"]   // our Kafka broker
 });
 
+
 const producer = kafka.producer();
 const matchRequestConsumer = kafka.consumer({ groupId: "backend-match-results" });
 
@@ -15,39 +16,120 @@ const matchRequestConsumer = kafka.consumer({ groupId: "backend-match-results" }
  * @returns {Promise<void>}
  */
 async function createMatch(io, matchData) {
-  try {
-    const { data, error } = await supabase
-      .from('matches')
-      .insert([
+  const { groups } = matchData
+
+  const matchesInsertions = []
+
+  for (const group of groups) {
+
+    const { difficulty, time_duration, matches } = group
+
+    const { data: problem_data, error: problem_error } = await supabase
+      .from("problems")
+      .select("id")
+      .eq("difficulty", difficulty)
+    if (problem_error) {
+      console.error('Could not get problems for the difficulty', problem_error)
+      continue
+    }
+
+    if (!problem_data) {
+      console.error('Could not get problems for the difficulty')
+      continue
+    }
+    for (const match of matches) {
+      const problem_id = problem_data[Math.floor(Math.random() * problem_data.length)]
+
+      matchesInsertions.push(
         {
-          player1_id: parseInt(matchData.player_ids[0]),
-          player2_id: parseInt(matchData.player_ids[1]),
+          player1_id: parseInt(match.player_ids[0]),
+          player2_id: parseInt(match.player_ids[1]),
           status: 'pending',
-          problem_id: null
+          problem_id: problem_id,
+          time_duration: time_duration,
         }
-      ])
-      .select(`
-            *,
-            player1:players!player1_id(id, username, elo),
-            player2:players!player2_id(id, username, elo)
-          `)
-      .single();
+      )
+    }
+  }
 
-    if (error) {
-      console.error('Error saving match to database:', error);
-    } else {
-      console.log('Match saved to database:', data);
+  const { data: matches_data, error: match_err } = await supabase.from('matches').insert(matchesInsertions).select('id, player1_id, player2_id')
 
+  if (match_err) {
+    console.error("failed to insert all new matches", error)
+    return
+  }
 
-      io.to('player-${data.player1_id}').emit('match-found', data);
-      io.to('player-${data.player2_id}').emit('match-found', data);
+  for (const match_data of matches_data) {
+    const p1Room = `player-${match_data.player1_id}`;
+    const p2Room = `player-${match_data.player2_id}`;
+    
+    console.log('Emitting match-found to player', match_data.player1_id);
+    console.log('  Room:', p1Room, '| Sockets in room:', io.sockets.adapter.rooms.get(p1Room)?.size || 0);
+    io.to(p1Room).emit('match-found', { matchId: match_data.id });
+    
+    console.log('Emitting match-found to player', match_data.player2_id);
+    console.log('  Room:', p2Room, '| Sockets in room:', io.sockets.adapter.rooms.get(p2Room)?.size || 0);
+    io.to(p2Room).emit('match-found', { matchId: match_data.id });
+  }
+  try {
+    await producer.send({
+      topic: 'room-create',
+      messages: [{
+        key: `room-create-${Date.now()}`,
+        value: JSON.stringify({
+          matches: matchesInsertions,
+          timestamp: Date.now()
+        })
+      }]
+    });
 
-      console.log('Match pushed via WebSocket');
+  } catch (error) {
+    console.error("failed to produce kafka message for creating rooms", error)
+  }
+
+}
+/**
+ * @param {import('socket.io').Server} io - The Socket.IO server instance.
+ * @param {any} matchData - The match data.
+ * @returns {Promise<void>}
+ */
+async function queueUpdate(io, matchData) {
+  try {
+    const { player_id, status, msg, position, eta } = matchData
+
+    console.log(`Queue update for player ${player_id}: ${ msg, position, eta }`);
+
+    io.to(`player-${player_id}`).emit('joined-queue', {
+      message: 'You are now in queue',
+      status: status,
+      position: position,
+      eta: eta
+    });
+
+  } catch (err) {
+    console.error('Error processing match message:', err);
+  }
+}
+
+/**
+ * @param {import('socket.io').Server} io - The Socket.IO server instance.
+ * @param {any} matchData - The match data.
+ * @returns {Promise<void>}
+ */
+async function gameMade(io, matchData) {
+  try {
+    const { type, player_id, room_code } = matchData
+
+    switch (type) {
+      case "joined_queue":
+        io.to(`player-${player_id}`).emit('game-made', room_code)
+        break
     }
   } catch (err) {
     console.error('Error processing match message:', err);
   }
 }
+
 
 /**
  * @param { import('express').Express } app - The Express application.
@@ -58,7 +140,8 @@ async function connectKafka(io) {
   await matchRequestConsumer.connect();
   console.log("Kafka connected");
 
-  await matchRequestConsumer.subscribe({ topic: ["match-found", "queue-update", "game-made"], fromBeginning: false });
+  await matchRequestConsumer.subscribe({ topics: ["match-found", "queue-update", "game-made"], fromBeginning: false });
+
 
   // TODO FINISH THIS SHIT
   matchRequestConsumer.run({
@@ -68,14 +151,14 @@ async function connectKafka(io) {
         console.log('Received match:', matchData);
         switch (topic) {
           case "queue-update":
+            await queueUpdate(io, matchData)
             break;
           case "match-found":
-            createMatch(io, matchData)
+            await createMatch(io, matchData)
             break;
           case "game-made":
+            await gameMade(io, matchData)
             break;
-
-
         }
       }
       catch (err) {

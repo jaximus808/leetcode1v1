@@ -157,7 +157,7 @@ router.post('/request', async (req, res) => {
       messages: [{
         key: player.id.toString(),
         value: JSON.stringify({
-          player_id: player.id,
+          player_id: player.id.toString(),
           elo_rank: player.elo,
           timestamp: Date.now()
         })

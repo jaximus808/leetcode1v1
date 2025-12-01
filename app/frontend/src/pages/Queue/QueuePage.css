@@ -1,0 +1,291 @@
+.queue-container {
+    min-height: calc(100vh - 56px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
+    padding: 20px;
+  }
+  
+  .queue-content {
+    max-width: 600px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
+  }
+  
+  /* Animated pieces section */
+  .queue-animation {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+  
+  .pieces-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 80px;
+    position: relative;
+  }
+  
+  .piece {
+    width: 80px;
+    height: 80px;
+    background: var(--card);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gold);
+    animation: float 3s ease-in-out infinite;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  }
+  
+  .piece-1 {
+    animation-delay: 0s;
+  }
+  
+  .piece-2 {
+    animation-delay: 1.5s;
+  }
+  
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px) rotate(0deg);
+    }
+    25% {
+      transform: translateY(-10px) rotate(-2deg);
+    }
+    50% {
+      transform: translateY(0px) rotate(0deg);
+    }
+    75% {
+      transform: translateY(-10px) rotate(2deg);
+    }
+  }
+  
+  .vs-divider {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--muted);
+    background: var(--panel);
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 2px solid var(--border-strong);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 0.6;
+      transform: translateX(-50%) scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: translateX(-50%) scale(1.1);
+    }
+  }
+  
+  /* Loading bar */
+  .loading-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--panel);
+    border-radius: 999px;
+    overflow: hidden;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  
+  .loading-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--gold), var(--accent));
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+    border-radius: 999px;
+  }
+  
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+  
+  /* Status text */
+  .queue-status-text {
+    text-align: center;
+  }
+  
+  .queue-title {
+    margin: 0 0 8px 0;
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--text);
+  }
+  
+  .queue-subtitle {
+    margin: 0;
+    font-size: 16px;
+    color: var(--muted);
+  }
+  
+/* Queue info card - Minimalist design */
+.queue-info-card {
+    width: 100%;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+  }
+  
+  .queue-info-item {
+    background: rgba(42, 42, 42, 0.4);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 24px 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 180px;
+    transition: all 0.3s ease;
+  }
+  
+  .queue-info-item:hover {
+    background: rgba(42, 42, 42, 0.6);
+    border-color: rgba(206, 163, 55, 0.3);
+    transform: translateY(-2px);
+  }
+  
+  .queue-info-label {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  
+  .queue-info-value {
+    color: var(--gold);
+    font-size: 36px;
+    font-weight: 900;
+    line-height: 1;
+    font-family: 'Courier New', monospace;
+  }
+  
+  /* Responsive queue cards */
+  @media (max-width: 640px) {
+    .queue-info-card {
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    .queue-info-item {
+      min-width: 100%;
+      padding: 20px;
+    }
+    
+    .queue-info-value {
+      font-size: 32px;
+    }
+  } 
+  
+  .queue-info-item:last-child {
+    border-bottom: none;
+  }
+  
+  .queue-info-label {
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 600;
+  }
+  
+  .queue-info-value {
+    color: var(--gold);
+    font-size: 24px;
+    font-weight: 800;
+  }
+  
+  /* Cancel button */
+  .queue-cancel-btn {
+    padding: 14px 32px;
+    background: var(--card);
+    color: var(--text);
+    border: 2px solid var(--border-strong);
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .queue-cancel-btn:hover {
+    background: #a23030;
+    border-color: #dc2626;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);
+  }
+  
+  /* Tips section */
+  .queue-tips {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .queue-tip {
+    background: rgba(206, 163, 55, 0.1);
+    border: 1px solid rgba(206, 163, 55, 0.3);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .queue-tip span {
+    color: var(--muted);
+  }
+  
+  /* Responsive */
+  @media (max-width: 640px) {
+    .queue-title {
+      font-size: 24px;
+    }
+    
+    .pieces-container {
+      gap: 40px;
+    }
+    
+    .piece {
+      width: 60px;
+      height: 60px;
+    }
+    
+    .piece svg {
+      width: 32px;
+      height: 32px;
+    }
+    
+    .vs-divider {
+      font-size: 18px;
+      padding: 6px 12px;
+    }
+  }

@@ -8,7 +8,7 @@ const { connectKafka, producer } = require('./kafka');
 const MakeSocketIOInstance = require('./socket')
 
 const app = express()
-const io = MakeSocketIOInstance(app)
+const {io, server} = MakeSocketIOInstance(app)
 app.set('io', io)
 
 app.use(cors({
@@ -31,7 +31,7 @@ supabase.from('players').select('count').then(({ data, error }) => {
 });
 
 // Connect Kafka
-connectKafka().catch(err => {
+connectKafka(io).catch(err => {
   console.error("Kafka connection error:", err);
 });
 
