@@ -36,7 +36,8 @@ export async function startKafkaClient(roomManager: RoomManager): Promise<Produc
                 key: `game-made-${Date.now()}`,
                 value: JSON.stringify({
                   playerIds: room.expectedPlayers,
-                  roomCode: match.id
+                  roomCode: match.id,
+                  problemId: match.problem_id
                 })
               }]
             })

@@ -120,10 +120,13 @@ async function queueUpdate(io, matchData) {
  */
 async function gameMade(io, matchData) {
   try {
-    const { playerIds, roomCode } = matchData
+    const { playerIds, roomCode, problemId } = matchData
 
     for (const playerId of playerIds) {
-      io.to(`player-${playerId}`).emit('game-made')
+      io.to(`player-${playerId}`).emit('game-made', {
+        matchId: roomCode, 
+        
+      })
     }
 
 
