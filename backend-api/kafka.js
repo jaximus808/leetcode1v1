@@ -67,27 +67,28 @@ async function createMatch(io, matchData) {
 
     console.log('Emitting match-found to player', match_data.player1_id);
     console.log('  Room:', p1Room, '| Sockets in room:', io.sockets.adapter.rooms.get(p1Room)?.size || 0);
-    io.to(p1Room).emit('match-found', { matchId: match_data.id, problemId: match_data.problem_id });
+    io.to(p1Room).emit('game-made', { matchId: match_data.id, problemId: match_data.problem_id });
 
     console.log('Emitting match-found to player', match_data.player2_id);
     console.log('  Room:', p2Room, '| Sockets in room:', io.sockets.adapter.rooms.get(p2Room)?.size || 0);
-    io.to(p2Room).emit('match-found', { matchId: match_data.id, problemId: match_data.problem_id });
+    io.to(p2Room).emit('game-made', { matchId: match_data.id, problemId: match_data.problem_id });
   }
-  try {
-    await producer.send({
-      topic: 'room-create',
-      messages: [{
-        key: `room-create-${Date.now()}`,
-        value: JSON.stringify({
-          matches: matchesInsertions,
-          timestamp: Date.now()
-        })
-      }]
-    });
+  // do this later
+  // try {
+  //   await producer.send({
+  //     topic: 'room-create',
+  //     messages: [{
+  //       key: `room-create-${Date.now()}`,
+  //       value: JSON.stringify({
+  //         matches: matchesInsertions,
+  //         timestamp: Date.now()
+  //       })
+  //     }]
+  //   });
 
-  } catch (error) {
-    console.error("failed to produce kafka message for creating rooms", error)
-  }
+  // } catch (error) {
+  //   console.error("failed to produce kafka message for creating rooms", error)
+  // }
 
 }
 /**
