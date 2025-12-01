@@ -1,6 +1,7 @@
 import { createClient, RedisClientType } from "redis"
 import { MatchResponse, Match } from "../kafka/match"
 import { Player } from "./player"
+import { Producer } from "kafkajs"
 import { Server } from "socket.io"
 import { v4 } from "uuid"
 type Room = {
@@ -12,7 +13,7 @@ type Room = {
   expectedPlayers: number[]
   status: 'waiting' | 'ingame' | 'completed'
   startTime: number | null
-  timerOwnerPod: string | null
+  timoutOwnerPod: string | null
   description: string
   title: string
 }
@@ -25,6 +26,7 @@ export class RoomManager {
   private redisSub: RedisClientType
   private io: Server
   private roomTimeouts: Map<number, NodeJS.Timeout> = new Map()
+
 
   constructor(io: Server, redisUrl: string) {
     this.io = io
@@ -52,7 +54,7 @@ export class RoomManager {
       expectedPlayers: [match.player1_id, match.player2_id],
       status: 'waiting',
       startTime: null,
-      timerOwnerPod: null,
+      timoutOwnerPod: null,
       difficulty: match.difficulty,
       description: match.description,
       title: match.title,
@@ -132,10 +134,10 @@ export class RoomManager {
   async startGame(room: Room) {
     room.status = 'ingame';
     room.startTime = Date.now();
-    room.timerOwnerPod = this.podId; // This pod owns the timer
+    room.timoutOwnerPod = this.podId; // This pod owns the timer
 
     await this.updateRoom(room);
-    this.startTimer(room);
+    this.startTimeout(room);
 
     // Notify all pods
     this.io.to(`room:${room.roomCode}`).emit('game_started', {
@@ -147,18 +149,18 @@ export class RoomManager {
     })
   }
 
-  private startTimer(room: Room) {
-    if (room.timerOwnerPod !== this.podId) return;
+  private startTimeout(room: Room) {
+    if (room.timoutOwnerPod !== this.podId) return;
 
     const duration = room.timeDuration
 
-    const roomTimeout = setInterval(async () => {
+    const roomTimeout = setTimeout(async () => {
       const currentRoom = await this.getRoom(room.roomCode.toString());
       this.endGame(room.roomCode)
       clearTimeout(roomTimeout)
       this.roomTimeouts.delete(room.roomCode)
       return
-    }, 1000)
+    }, duration)
 
     this.roomTimeouts.set(room.roomCode, roomTimeout)
 
@@ -172,13 +174,13 @@ export class RoomManager {
 
     await this.updateRoom(room)
 
-    if (room.timerOwnerPod && room.timerOwnerPod !== this.podId) {
+    if (room.timoutOwnerPod && room.timoutOwnerPod !== this.podId) {
       await this.sendControlMessage({
         type: 'stop_timer',
         roomCode,
         fromPod: this.podId
       });
-    } else if (room.timerOwnerPod === this.podId) {
+    } else if (room.timoutOwnerPod === this.podId) {
       // We own the timer, stop it locally
       const timer = this.roomTimeouts.get(roomCode);
       if (timer) {
@@ -193,11 +195,27 @@ export class RoomManager {
     const score2 = room.players[playerKeys[1]].score
 
     const winner = (score1 > score2) ? playerKeys[0] : ((score1 < score2) ? playerKeys[1] : -1)
+    const loser = (score1 < score2) ? playerKeys[0] : ((score1 > score2) ? playerKeys[1] : -1)
 
     // Broadcast game end to all players (via Socket.IO adapter)
     this.io.to(`room:${roomCode}`).emit('game_ended', {
       winner,
     });
+
+    return {winner, loser}
+    // CALL THIS IN SOCKET IO
+    // this.producer.send({
+    //   topic: 'game-over',
+    //   messages: [{
+    //     key: `game-over-${Date.now()}`,
+    //     value: JSON.stringify({
+    //       roomCode: roomCode,
+    //       winner: winner,
+    //        loser: loser
+    //     })
+    //   }]
+    // })
+
   }
 
   private async sendControlMessage(message: any) {

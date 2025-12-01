@@ -31,13 +31,14 @@ func NewMatchMaker(producer *broker.KafkaProducer, matchRange float64, timeMult 
 
 // acceptable range expands as tiemstamp that maxd of one the other players has been waiting for a match
 // BUG: no matter what elo difference, players will be matched instantly
+// FIX: Should be fixed now, before i didnt do its diff and just mul;tipeld time mult by the big ass timestamp lol, now its based on diff
 func (mm *MatchMaker) determineMatch(p1 *game.MatchRequest, p2 *game.MatchRequest) bool {
 	if p1 == nil || p2 == nil {
 		return false
 	}
 	eloDiff := math.Abs(float64(p1.EloRank) - float64(p2.EloRank))
 
-	return eloDiff <= mm.matchRange*(mm.timeMult*math.Max(float64(p1.Timestamp), float64(p2.Timestamp)))
+	return eloDiff <= mm.matchRange*(1.0+mm.timeMult*math.Max(float64(time.Now().Unix()-p1.Timestamp), float64(time.Now().Unix()-p2.Timestamp)))
 }
 
 func (mm *MatchMaker) publishMatches(allMatches map[int][]*game.Match) error {
@@ -54,7 +55,7 @@ func (mm *MatchMaker) publishMatches(allMatches map[int][]*game.Match) error {
 	if !hasMatches {
 		return nil
 	}
-	
+
 	matchGroup := []*game.MatchGroup{}
 
 	for keyCode, matches := range allMatches {
@@ -173,11 +174,11 @@ func (mm *MatchMaker) encodeCode(diff string, time string) int {
 
 	switch time {
 
-	case "easy":
+	case "10":
 		code += 10
-	case "medium":
+	case "20":
 		code += 20
-	case "hard":
+	case "30":
 		code += 30
 	default:
 		return -1
@@ -227,14 +228,14 @@ func (mm *MatchMaker) StartEngine() {
 				playersAhead = 0
 			}
 
-			estimatedWait := (playersAhead / 2) * 2 //in seconds
+			estimatedWait := (playersAhead / 2) * 2 // in seconds
 
 			queueUpdate := &game.QueueUpdates{
-				PlayerID: req.PlayerID,
-				Status:   1, //1 = joined queue
-				Message:  "joined queue",
-				Position: position,
-				ETA:      estimatedWait,
+				PlayerID:  req.PlayerID,
+				Status:    1, // 1 = joined queue
+				Message:   "joined queue",
+				Position:  position,
+				ETA:       estimatedWait,
 				Timestamp: time.Now().Unix(),
 			}
 
@@ -244,7 +245,7 @@ func (mm *MatchMaker) StartEngine() {
 			} else {
 				fmt.Printf("Player %s added to queue (code: %d)", req.PlayerID, queueKey)
 			}
-			
+
 		case <-ticker.C:
 			allMatches := mm.attemptMatch()
 

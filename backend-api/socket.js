@@ -76,14 +76,16 @@ function MakeSocketIOInstance(app) {
         return res.status(404).json({ message: 'Player not found' });
       }
       try {
+        
+        /// uhhh i thought they request the difficulty and is speerate from time mapped
+        // oops wait nvm this was a mistake with my engine lol - Jaxon
+        // const timeMapping = {
+        //   '10': 'easy',
+        //   '20': 'medium',
+        //   '30': 'hard'
+        // }
 
-        const timeMapping = {
-          '10': 'easy',
-          '20': 'medium',
-          '30': 'hard'
-        }
-
-        const mappedTime = timeMapping[time] || 'easy';
+        // const mappedTime = timeMapping[time] || 'easy';
         
         await producer.send({
           topic: 'match-requests',
@@ -93,7 +95,7 @@ function MakeSocketIOInstance(app) {
               player_id: player.id.toString(),
               elo_rank: player.elo,
               difficulty: difficulty,
-              time: mappedTime,
+              time: time,
               timestamp: Date.now()
             })
           }]

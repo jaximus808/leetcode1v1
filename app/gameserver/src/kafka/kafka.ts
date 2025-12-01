@@ -1,4 +1,4 @@
-import { Kafka, Producer } from 'kafkajs'
+import { EachMessagePayload, Kafka, Producer } from 'kafkajs'
 import { RoomManager } from "../game/roommanager";
 import { MatchResponse, MatchResponseSchema } from './match';
 import z from 'zod';
@@ -19,7 +19,7 @@ export async function startKafkaClient(roomManager: RoomManager): Promise<Produc
   await consumer.subscribe({ topics: ['room-create'] })
 
   consumer.run({
-    eachMessage: async ({ message }) => {
+    eachMessage: async ({ message }: EachMessagePayload) => {
       try {
         if (message.value) {
           const data = JSON.parse(message.value.toString())
@@ -35,7 +35,8 @@ export async function startKafkaClient(roomManager: RoomManager): Promise<Produc
               messages: [{
                 key: `game-made-${Date.now()}`,
                 value: JSON.stringify({
-                  playerIds: room.expectedPlayers
+                  playerIds: room.expectedPlayers,
+                  roomCode: match.id
                 })
               }]
             })
