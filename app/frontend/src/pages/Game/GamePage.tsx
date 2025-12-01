@@ -118,20 +118,58 @@ export default function GamePage() {
     const header = `// Implement solve() below\n`
     switch (lang) {
       case 'python':
-        return `# Implement solve() below \ndef solve():\n    # TODO\n    pass\n`
+        return `# Implement solve(input) below
+def solve(input):
+    # input is a dict, e.g. {"nums":[...], "target":...}
+    return []
+`
       case 'typescript':
-        return `${header}function solve(): void {\n  // TODO\n}\n`
+        return `${header}function solve(input: any) {
+  // input: { nums: number[], target: number }
+  return [];
+}
+`
       case 'java':
-        return `${header}public class Solution {\n    public static void main(String[] args) {\n        // Optional: call solve();\n    }\n\n    public static void solve() {\n        // TODO\n    }\n}\n`
+        return `${header}public class Solution {
+    public static void main(String[] args) {
+        // For Java, send full program that reads stdin if you want to run here.
+    }
+
+    public static Object solve(Object input) {
+        // TODO: implement or send full program for Java
+        return null;
+    }
+}
+`
       case 'c':
-        return `${header}#include <stdio.h>\n\nint solve(void) {\n    // TODO\n    return 0;\n}\n\nint main(void) {\n    // Optional: call solve();\n    return 0;\n}\n`
+        return `${header}#include <stdio.h>
+// For C/C++, send a full program that reads stdin JSON and prints the result.
+int main(void) {
+    return 0;
+}
+`
       case 'cpp':
-        return `${header}#include <bits/stdc++.h>\nusing namespace std;\n\nint solve() {\n    // TODO\n    return 0;\n}\n\nint main(){\n    // Optional: call solve();\n    return 0;\n}\n`
+        return `${header}#include <bits/stdc++.h>
+using namespace std;
+// For C/C++, send a full program that reads stdin JSON and prints the result.
+int main(){
+    return 0;
+}
+`
       case 'csharp':
-        return `${header}using System;\n\nclass Program {\n    static void Main(string[] args) {\n        // Optional: call solve();\n    }\n\n    static void solve() {\n        // TODO\n    }\n}\n`
+        return `${header}using System;
+// For C#, send a full program that reads stdin JSON and prints the result.
+class Program {
+    static void Main(string[] args) { }
+}
+`
       case 'javascript':
       default:
-        return `${header}function solve() {\n  // TODO\n}\n`
+        return `${header}function solve(input) {
+  // input: { nums: number[], target: number }
+  return [];
+}
+`
     }
   }
 
@@ -268,12 +306,12 @@ export default function GamePage() {
               </select>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button type="button" aria-label="Run" className="icon-btn" onClick={() => {}}>
+              <button type="button" aria-label="Run" className="icon-btn" onClick={onRun}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M8 5v14l11-7z" />
                 </svg>
               </button>
-              <button type="button" className="action-btn" onClick={() => {}}>
+              <button type="button" className="action-btn" onClick={onSubmit}>
                 Submit
               </button>
             </div>
