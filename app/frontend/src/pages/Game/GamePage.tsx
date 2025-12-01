@@ -3,6 +3,14 @@ import { useLocation, useParams } from 'react-router-dom'
 import './GamePage.css'
 import Editor from '@monaco-editor/react'
 import axios from 'axios'
+import { io, Socket } from 'socket.io-client'
+import { useAuth } from '../../contexts/AuthContext'
+
+interface TestProgress {
+  playerId?: string;
+  passed: number;
+  total: number;
+}
 
 interface Problem {
   id: number
@@ -32,8 +40,8 @@ interface StarterCodeJSON {
 }
 
 export default function GamePage() {
-  const { matchId } = useParams< { matchId: string } >()
-  const API_BASE =(import.meta as any).env?.VITE_JUDGE_API_BASE || 'http://localhost:7071/api'
+  const { matchId } = useParams<{ matchId: string }>()
+  const API_BASE = (import.meta as any).env?.VITE_JUDGE_API_BASE || 'http://localhost:7071/api'
   const location = useLocation()
   const params = new URLSearchParams(location.search)
   const problemId = params.get('problemId')
@@ -42,6 +50,89 @@ export default function GamePage() {
   const [problem, setProblem] = useState<Problem | null>(null)
   const [starterCodes, setStarterCodes] = useState<StarterCodeJSON | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const [myProgress, setMyProgress] = useState<TestProgress>({ passed: 0, total: 0 });
+  const [opponentProgress, setOpponentProgress] = useState<TestProgress>({ passed: 0, total: 0 });
+  const [gameSocket, setGameSocket] = useState<Socket | null>(null);
+  const { user } = useAuth()
+
+  const [gameOver, setGameOver] = useState(false);
+  const [winner, setWinner] = useState<{ id: number; isMe: boolean } | null>(null);
+
+useEffect(() => {
+  if (!matchId || !user) return;
+
+  // Connect to game server
+  const socket = io('http://localhost:3000', {
+    query: { matchId, userId: user.id }
+  });
+
+  socket.on('connect', () => {
+    console.log('Connected to game server');
+    socket.emit('join_room', { roomCode: matchId, userId: user.id, username: user.username });
+  });
+
+  // Listen for test progress updates
+  socket.on('test-progress', (data: TestProgress) => {
+    console.log('Test progress:', data);
+    console.log('Comparing: ', data.playerId, 'with', user.id, 'and', user.id.toString());
+
+    if (String(data.playerId) === String(user.id)) {
+      setMyProgress({ passed: data.passed, total: data.total });
+    } else {
+      setOpponentProgress({ passed: data.passed, total: data.total });
+    }
+  });
+
+  // NEW: Listen for game over
+  socket.on('game-over', (data: { winnerId: number; loserId: number; winnerScore: number; reason: string }) => {
+    console.log('🏆 Game Over!', data);
+    setGameOver(true);
+    setWinner({
+      id: data.winnerId,
+      isMe: data.winnerId == user.id
+    });
+  });
+
+  setGameSocket(socket);
+
+  return () => {
+    socket.disconnect();
+  };
+}, [matchId, user]);
+
+  useEffect(() => {
+    if (!matchId || !user) return;
+
+    // Connect to game server
+    const socket = io('http://localhost:3000', {  // Update with your game server URL
+      query: { matchId, userId: user.id }
+    });
+
+    socket.on('connect', () => {
+      console.log('Connected to game server');
+      socket.emit('join_room', { roomCode: matchId, userId: user.id, username: user.username });
+    });
+
+    // Listen for test progress updates
+    socket.on('test-progress', (data: TestProgress) => {
+      console.log('Test progress:', data);
+      console.log('Comparing: ', data.playerId, 'with', user.id, 'and', user.id.toString());
+
+      if (String(data.playerId) === String(user.id)) {
+        setMyProgress({ passed: data.passed, total: data.total });
+      } else {
+        setOpponentProgress({ passed: data.passed, total: data.total });
+      }
+    });
+
+    setGameSocket(socket);
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [matchId, user]);
+
 
   const languages = [
     { value: 'javascript', label: 'Javascript', monaco: 'javascript' },
@@ -60,96 +151,96 @@ export default function GamePage() {
   // Fetch problem data
   // app/frontend/src/pages/Game/GamePage.tsx - REPLACE lines 60-180
 
-useEffect(() => {
-  const fetchProblemData = async () => {
-    if (!problemId) {
-      console.error('No problemId provided')
-      setLoading(false)
-      return
-    }
-    
-    try {
-      const problemResponse = await axios.get(`http://localhost:3000/api/problems/${problemId}`)
-      const problemData = problemResponse.data
-      setProblem(problemData)
-      
-      if (problemData.starter_code_url) {
-        const starterCodeResponse = await axios.get(problemData.starter_code_url)
-        setStarterCodes(starterCodeResponse.data)
-        
-        const problemKey = getProblemKey(problemData.title)
-        
-        if (starterCodeResponse.data[problemKey]) {
-          const initialCode = starterCodeResponse.data[problemKey][language]
-          setCode(initialCode || getDefaultStarterCode(language))
+  useEffect(() => {
+    const fetchProblemData = async () => {
+      if (!problemId) {
+        console.error('No problemId provided')
+        setLoading(false)
+        return
+      }
+
+      try {
+        const problemResponse = await axios.get(`http://localhost:3000/api/problems/${problemId}`)
+        const problemData = problemResponse.data
+        setProblem(problemData)
+
+        if (problemData.starter_code_url) {
+          const starterCodeResponse = await axios.get(problemData.starter_code_url)
+          setStarterCodes(starterCodeResponse.data)
+
+          const problemKey = getProblemKey(problemData.title)
+
+          if (starterCodeResponse.data[problemKey]) {
+            const initialCode = starterCodeResponse.data[problemKey][language]
+            setCode(initialCode || getDefaultStarterCode(language))
+          } else {
+            console.log('Available keys:', Object.keys(starterCodeResponse.data))
+            setCode(getDefaultStarterCode(language))
+          }
         } else {
-          console.log('Available keys:', Object.keys(starterCodeResponse.data))
           setCode(getDefaultStarterCode(language))
         }
-      } else {
+      } catch (error) {
         setCode(getDefaultStarterCode(language))
+      } finally {
+        setLoading(false)
       }
-    } catch (error) {
-      setCode(getDefaultStarterCode(language))
-    } finally {
-      setLoading(false)
     }
+
+    fetchProblemData()
+  }, [problemId, language]) // Add language as dependency
+
+  function getProblemKey(title: string): string {
+    // Convert title to match your JSON key format
+    // "Two Sum" -> "two_sum"
+    const key = title
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s]/g, '') // Remove special characters
+      .replace(/\s+/g, '_')     // Replace spaces with underscores
+
+    return key
   }
-  
-  fetchProblemData()
-}, [problemId, language]) // Add language as dependency
 
-function getProblemKey(title: string): string {
-  // Convert title to match your JSON key format
-  // "Two Sum" -> "two_sum"
-  const key = title
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s]/g, '') // Remove special characters
-    .replace(/\s+/g, '_')     // Replace spaces with underscores
-  
-  return key
-}
+  const getStarterCodeForLanguage = useCallback((lang: typeof languages[number]['value']): string => {
+    console.log(`🔍 Getting starter code for language: ${lang}`)
 
-const getStarterCodeForLanguage = useCallback((lang: typeof languages[number]['value']): string => {
-  console.log(`🔍 Getting starter code for language: ${lang}`)
-  
-  if(!problem || !starterCodes) {
+    if (!problem || !starterCodes) {
+      return getDefaultStarterCode(lang)
+    }
+
+    const problemKey = getProblemKey(problem.title)
+
+    const problemStarterCodes = starterCodes[problemKey]
+
+    if (!problemStarterCodes) {
+      return getDefaultStarterCode(lang)
+    }
+
+    if (problemStarterCodes[lang]) {
+      return problemStarterCodes[lang]!
+    }
+
     return getDefaultStarterCode(lang)
-  }
+  }, [problem, starterCodes])
 
-  const problemKey = getProblemKey(problem.title)
-  
-  const problemStarterCodes = starterCodes[problemKey]
-  
-  if(!problemStarterCodes) {
-    return getDefaultStarterCode(lang)
-  }
-
-  if(problemStarterCodes[lang]) {
-    return problemStarterCodes[lang]!
-  }
-
-  return getDefaultStarterCode(lang)
-}, [problem, starterCodes])
-
-function getDefaultStarterCode(lang: typeof languages[number]['value']): string {
-  const header = `// Implement solve() below\n`
-  switch (lang) {
-    case 'python':
-      return `# Implement solve(input) below
+  function getDefaultStarterCode(lang: typeof languages[number]['value']): string {
+    const header = `// Implement solve() below\n`
+    switch (lang) {
+      case 'python':
+        return `# Implement solve(input) below
 def solve(input):
     # input is a dict, e.g. {"nums":[...], "target":...}
     return []
 `
-    case 'typescript':
-      return `${header}function solve(input: any) {
+      case 'typescript':
+        return `${header}function solve(input: any) {
   // input: { nums: number[], target: number }
   return [];
 }
 `
-    case 'java':
-      return `${header}public class Solution {
+      case 'java':
+        return `${header}public class Solution {
     public static void main(String[] args) {
         // For Java, send full program that reads stdin if you want to run here.
     }
@@ -160,44 +251,44 @@ def solve(input):
     }
 }
 `
-    case 'c':
-      return `${header}#include <stdio.h>
+      case 'c':
+        return `${header}#include <stdio.h>
 // For C/C++, send a full program that reads stdin JSON and prints the result.
 int main(void) {
     return 0;
 }
 `
-    case 'cpp':
-      return `${header}#include <bits/stdc++.h>
+      case 'cpp':
+        return `${header}#include <bits/stdc++.h>
 using namespace std;
 // For C/C++, send a full program that reads stdin JSON and prints the result.
 int main(){
     return 0;
 }
 `
-    case 'csharp':
-      return `${header}using System;
+      case 'csharp':
+        return `${header}using System;
 // For C#, send a full program that reads stdin JSON and prints the result.
 class Program {
     static void Main(string[] args) { }
 }
 `
-    case 'javascript':
-    default:
-      return `${header}function solve(input) {
+      case 'javascript':
+      default:
+        return `${header}function solve(input) {
   // input: { nums: number[], target: number }
   return [];
 }
 `
+    }
   }
-}
 
-useEffect(() => {
-  if(problem && starterCodes) {
-    const newCode = getStarterCodeForLanguage(language)
-    setCode(newCode)
-  }
-}, [language, problem, starterCodes, getStarterCodeForLanguage])
+  useEffect(() => {
+    if (problem && starterCodes) {
+      const newCode = getStarterCodeForLanguage(language)
+      setCode(newCode)
+    }
+  }, [language, problem, starterCodes, getStarterCodeForLanguage])
 
   // Timer seeded from query param (defaults to 10)
   const GAME_DURATION_SECONDS = Math.max(1, initialMinutes) * 60
@@ -240,7 +331,9 @@ useEffect(() => {
         body: JSON.stringify({
           problemId,
           language: String(language).toLowerCase(),
-          sourceCode: code
+          sourceCode: code,
+          matchId,
+          playerId: user?.id
         })
       })
       const json = await res.json()
@@ -248,7 +341,7 @@ useEffect(() => {
     } catch (err) {
       console.error(`[${endpoint}] error`, err)
     }
-  }, [API_BASE, problemId, language, code])
+  }, [API_BASE, problemId, language, code, matchId, user])
 
   const onRun = useCallback(() => { void callJudge('run') }, [callJudge])
   const onSubmit = useCallback(() => { void callJudge('submit') }, [callJudge])
@@ -273,60 +366,146 @@ useEffect(() => {
     )
   }
 
+  if (gameOver && winner) {
+    return (
+      <div className="game-root">
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: '#1a1a1a',
+            padding: '3rem',
+            borderRadius: '16px',
+            border: winner.isMe ? '3px solid #22c55e' : '3px solid #ef4444',
+            textAlign: 'center',
+            maxWidth: '500px',
+            width: '90%'
+          }}>
+            <h1 style={{
+              fontSize: '3rem',
+              marginBottom: '1rem',
+              color: winner.isMe ? '#22c55e' : '#ef4444'
+            }}>
+              {winner.isMe ? '🏆 Victory!' : '💔 Defeat'}
+            </h1>
+            
+            <p style={{
+              fontSize: '1.5rem',
+              color: '#cfcfcf',
+              marginBottom: '2rem'
+            }}>
+              {winner.isMe 
+                ? 'You completed all test cases first!' 
+                : 'Your opponent completed all test cases first.'}
+            </p>
+            
+            <div style={{
+              display: 'flex',
+              gap: '1rem',
+              justifyContent: 'center',
+              marginTop: '2rem'
+            }}>
+              <button
+                onClick={() => window.location.href = '/'}
+                style={{
+                  padding: '0.75rem 2rem',
+                  fontSize: '1rem',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                Return Home
+              </button>
+              
+              <button
+                onClick={() => window.location.reload()}
+                style={{
+                  padding: '0.75rem 2rem',
+                  fontSize: '1rem',
+                  backgroundColor: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                View Results
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="game-root">
       <div className="game-main">
-      <aside className="game-left">
-  <div className="problem-head">
-    <h2 className="problem-title">{problem.title}</h2>
-    <span className={`problem-badge ${problem.difficulty.toLowerCase()}`}>
-      {problem.difficulty}
-    </span>
-  </div>
-  
-  {/* Description */}
-  <div className="problem-desc">{problem.description}</div>
-  
-  {/* Examples */}
-  {problem.examples && problem.examples.length > 0 && (
-    <>
-      <h3 className="problem-section-header">Examples</h3>
-      <div className="problem-examples">
-        {problem.examples.map((ex, i) => (
-          <div key={i} className="example">
-            <div className="example-header">Example {i + 1}:</div>
-            <div className="example-item">
-              <div className="example-label">Input:</div>
-              <div className="example-content">{ex.input}</div>
-            </div>
-            <div className="example-item">
-              <div className="example-label">Output:</div>
-              <div className="example-content">{ex.output}</div>
-            </div>
-            {ex.explanation && (
-              <div className="example-item">
-                <div className="example-label">Explanation:</div>
-                <div className="example-content">{ex.explanation}</div>
-              </div>
-            )}
+        <aside className="game-left">
+          <div className="problem-head">
+            <h2 className="problem-title">{problem.title}</h2>
+            <span className={`problem-badge ${problem.difficulty.toLowerCase()}`}>
+              {problem.difficulty}
+            </span>
           </div>
-        ))}
-      </div>
-    </>
-  )}
-  
-  {/* Constraints */}
-  {problem.constraints && problem.constraints.length > 0 && (
-    <>
-      <h3 className="problem-section-header">Constraints:</h3>
-      <ul className="problem-constraints">
-        {problem.constraints.map((c, i) => (
-          <li key={i} dangerouslySetInnerHTML={{ __html: c }} />
-        ))}
-      </ul>
-    </>
-  )}
-</aside>
+
+          {/* Description */}
+          <div className="problem-desc">{problem.description}</div>
+
+          {/* Examples */}
+          {problem.examples && problem.examples.length > 0 && (
+            <>
+              <h3 className="problem-section-header">Examples</h3>
+              <div className="problem-examples">
+                {problem.examples.map((ex, i) => (
+                  <div key={i} className="example">
+                    <div className="example-header">Example {i + 1}:</div>
+                    <div className="example-item">
+                      <div className="example-label">Input:</div>
+                      <div className="example-content">{ex.input}</div>
+                    </div>
+                    <div className="example-item">
+                      <div className="example-label">Output:</div>
+                      <div className="example-content">{ex.output}</div>
+                    </div>
+                    {ex.explanation && (
+                      <div className="example-item">
+                        <div className="example-label">Explanation:</div>
+                        <div className="example-content">{ex.explanation}</div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Constraints */}
+          {problem.constraints && problem.constraints.length > 0 && (
+            <>
+              <h3 className="problem-section-header">Constraints:</h3>
+              <ul className="problem-constraints">
+                {problem.constraints.map((c, i) => (
+                  <li key={i} dangerouslySetInnerHTML={{ __html: c }} />
+                ))}
+              </ul>
+            </>
+          )}
+        </aside>
 
         <div className="editor-col">
           <div className="editor-toolbar" role="toolbar" aria-label="Editor controls">
@@ -407,16 +586,16 @@ useEffect(() => {
               <div className="progress-item">
                 <div className="progress-head">
                   <span style={{ color: '#cfcfcf' }}>You</span>
-                  <span style={{ color: '#9ca3af', fontSize: 12 }}>0 / 10 tests</span>
+                  <span style={{ color: '#9ca3af', fontSize: 12 }}>{myProgress.passed} / {myProgress.total} tests</span>
                 </div>
-                <div className="progress-track"><div className="progress-fill-you" /></div>
+                <div className="progress-track"><div className="progress-fill-you" style={{ width: myProgress.total > 0 ? `${(myProgress.passed / myProgress.total) * 100}%` : '0%' }} /></div>
               </div>
               <div className="progress-item">
                 <div className="progress-head">
                   <span style={{ color: '#cfcfcf' }}>Opponent</span>
-                  <span style={{ color: '#9ca3af', fontSize: 12 }}>0 / 10 tests</span>
+                  <span style={{ color: '#9ca3af', fontSize: 12 }}>{opponentProgress.passed} / {opponentProgress.total} tests</span>
                 </div>
-                <div className="progress-track"><div className="progress-fill-op" /></div>
+                <div className="progress-track"><div className="progress-fill-op" style={{ width: opponentProgress.total > 0 ? `${(opponentProgress.passed / opponentProgress.total) * 100}%` : '0%' }} /></div>
               </div>
             </div>
             <div className="chat-wrap">

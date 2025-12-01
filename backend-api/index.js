@@ -8,7 +8,7 @@ const { connectKafka, producer } = require('./kafka');
 const MakeSocketIOInstance = require('./socket')
 
 const app = express()
-const {io, server} = MakeSocketIOInstance(app)
+const { io, server } = MakeSocketIOInstance(app)
 app.set('io', io)
 
 app.use(cors({
@@ -56,6 +56,60 @@ app.get('/', (req, res) => {
       matches: '/api/matches'
     }
   });
+});
+
+app.post('/api/test-progress', async (req, res) => {
+  const { matchId, playerId, passed, total } = req.body;
+
+  if (!matchId || !playerId || passed === undefined || total === undefined) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  console.log(`Test progress: Player ${playerId} in match ${matchId}: ${passed}/${total}`);
+
+  // Emit to the game room
+  io.to(`room:${matchId}`).emit('test-progress', {
+    playerId,
+    passed,
+    total
+  });
+
+  // Check if player won (100% completion)
+  if (passed === total) {
+    console.log(`🏆 Player ${playerId} completed all tests! Game Over!`);
+
+    // Get match data to determine opponent
+    const supabase = require('./supabase');
+    const { data: match } = await supabase
+      .from('matches')
+      .select('player1_id, player2_id')
+      .eq('id', matchId)
+      .single();
+
+    if (match) {
+      const winnerId = playerId;
+      const loserId = match.player1_id == playerId ? match.player2_id : match.player1_id;
+
+      // Update match status
+      await supabase
+        .from('matches')
+        .update({
+          status: 'completed',
+          result: match.player1_id == playerId ? 'player1' : 'player2'
+        })
+        .eq('id', matchId);
+
+      // Emit game over event
+      io.to(`room:${matchId}`).emit('game-over', {
+        winnerId,
+        loserId,
+        winnerScore: total,
+        reason: 'completed_all_tests'
+      });
+    }
+  }
+
+  res.json({ success: true });
 });
 
 // Start server
