@@ -38,6 +38,9 @@ func (mm *MatchMaker) determineMatch(p1 *game.MatchRequest, p2 *game.MatchReques
 	}
 	eloDiff := math.Abs(float64(p1.EloRank) - float64(p2.EloRank))
 
+	fmt.Printf("EloDiff: %f", eloDiff)
+
+	fmt.Printf("Match range %f", mm.matchRange*(1.0+mm.timeMult*math.Max(float64(time.Now().Unix()-p1.Timestamp), float64(time.Now().Unix()-p2.Timestamp))))
 	return eloDiff <= mm.matchRange*(1.0+mm.timeMult*math.Max(float64(time.Now().Unix()-p1.Timestamp), float64(time.Now().Unix()-p2.Timestamp)))
 }
 
