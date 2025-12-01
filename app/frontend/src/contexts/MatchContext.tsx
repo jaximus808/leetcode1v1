@@ -11,16 +11,33 @@ interface QueueUpdate {
     playersAhead?: number
 }
 
-interface Match {
-  id: number
-  player1_id: number
-  player2_id: number
-  problem_id: number | null
-  status: string
-  player1: { id: number; username: string; elo: number }
-  player2: { id: number; username: string; elo: number }
-  problem: { id: number; title: string; difficulty: string } | null
+export interface Match {
+  id: number;
+  player1_id: number;
+  player2_id: number;
+  status: string;
+  result: "player1" | "player2" | "draw" | null;
+  created_at: string;
+
+  problem: {
+    id: number;
+    title: string;
+    difficulty: string;
+  } | null;
+
+  player1: {
+    id: number;
+    username: string;
+    elo: number;
+  };
+
+  player2: {
+    id: number;
+    username: string;
+    elo: number;
+  };
 }
+
 
 interface MatchContextType {
   currentMatch: Match | null
@@ -77,13 +94,13 @@ export function MatchProvider({ children }: { children: ReactNode }) {
         setQueueEta(data.eta || null)
       })
 
-      newSocket.on('match-found', (data: { matchId: number }) => {
+      newSocket.on('match-found', (data: { matchId: number, problemId: number }) => {
         console.log('Match found:', data)
         setIsSearching(false)
         setQueuePosition(null)
         setQueueEta(null)
         setTimeout(() => {
-          window.location.href = `/game/${data.matchId}`
+          window.location.href = `/game/${data.matchId}?problemId=${data.problemId}`
         }, 500)
       })
 
