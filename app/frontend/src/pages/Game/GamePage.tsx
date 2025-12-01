@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useLocation, useParams } from 'react-router-dom'
 import './GamePage.css'
 import Editor from '@monaco-editor/react'
@@ -10,7 +10,7 @@ interface Problem {
   difficulty: string
   description: string
   test_case_url?: string
-  starter_code_url?: string
+  starter_code_path?: string
   constraints?: string[]
   examples?: Array<{
     input: string
@@ -33,6 +33,7 @@ interface StarterCodeJSON {
 
 export default function GamePage() {
   const { matchId } = useParams< { matchId: string } >()
+  const API_BASE =(import.meta as any).env?.VITE_JUDGE_API_BASE || 'http://localhost:7071/api'
   const location = useLocation()
   const params = new URLSearchParams(location.search)
   const problemId = params.get('problemId')
@@ -57,80 +58,98 @@ export default function GamePage() {
   const [code, setCode] = useState<string>('')
 
   // Fetch problem data
-  useEffect(() => {
-    const fetchProblemData = async () => {
-      if (!problemId) {
-        console.error('No problemId provided')
-        setLoading(false)
-        return
-      }
-      
-      try {
-        const problemResponse = await axios.get(`http://localhost:3000/api/problems/${problemId}`)
-        const problemData = problemResponse.data
-        setProblem(problemData)
-        
-        if (problemData.starter_code_url) {
-          const starterCodeResponse = await axios.get(problemData.starter_code_url)
-          setStarterCodes(starterCodeResponse.data)
-          
-          const problemKey = getProblemKey(problemData.title)
-          if (starterCodeResponse.data[problemKey]) {
-            const initialCode = starterCodeResponse.data[problemKey][language]
-            setCode(initialCode || getDefaultStarterCode(language))
-          } else {
-            setCode(getDefaultStarterCode(language))
-          }
-        } else {
-          setCode(getDefaultStarterCode(language))
-        }
-      } catch (error) {
-        console.error('Failed to fetch problem data:', error)
-        setCode(getDefaultStarterCode(language))
-      } finally {
-        setLoading(false)
-      }
+  // app/frontend/src/pages/Game/GamePage.tsx - REPLACE lines 60-180
+
+useEffect(() => {
+  const fetchProblemData = async () => {
+    if (!problemId) {
+      console.error('No problemId provided')
+      setLoading(false)
+      return
     }
     
-    fetchProblemData()
-  }, [problemId])
-
-  function getProblemKey(title: string): string {
-    return title.toLowerCase().replace(/ /g, '_')
+    try {
+      const problemResponse = await axios.get(`http://localhost:3000/api/problems/${problemId}`)
+      const problemData = problemResponse.data
+      setProblem(problemData)
+      
+      if (problemData.starter_code_url) {
+        const starterCodeResponse = await axios.get(problemData.starter_code_url)
+        setStarterCodes(starterCodeResponse.data)
+        
+        const problemKey = getProblemKey(problemData.title)
+        
+        if (starterCodeResponse.data[problemKey]) {
+          const initialCode = starterCodeResponse.data[problemKey][language]
+          setCode(initialCode || getDefaultStarterCode(language))
+        } else {
+          console.log('Available keys:', Object.keys(starterCodeResponse.data))
+          setCode(getDefaultStarterCode(language))
+        }
+      } else {
+        setCode(getDefaultStarterCode(language))
+      }
+    } catch (error) {
+      setCode(getDefaultStarterCode(language))
+    } finally {
+      setLoading(false)
+    }
   }
+  
+  fetchProblemData()
+}, [problemId, language]) // Add language as dependency
 
-  function getStarterCodeForLanguage(lang: typeof languages[number]['value']): string {
-    if(!problem || !starterCodes) {
-      return getDefaultStarterCode(lang)
-    }
+function getProblemKey(title: string): string {
+  // Convert title to match your JSON key format
+  // "Two Sum" -> "two_sum"
+  const key = title
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s]/g, '') // Remove special characters
+    .replace(/\s+/g, '_')     // Replace spaces with underscores
+  
+  return key
+}
 
-    const problemKey = getProblemKey(problem.title)
-    const problemStarterCodes = starterCodes[problemKey]
-
-    if(problemStarterCodes && problemStarterCodes[lang]) {
-      return problemStarterCodes[lang]!
-    }
-
+const getStarterCodeForLanguage = useCallback((lang: typeof languages[number]['value']): string => {
+  console.log(`🔍 Getting starter code for language: ${lang}`)
+  
+  if(!problem || !starterCodes) {
     return getDefaultStarterCode(lang)
   }
 
-  function getDefaultStarterCode(lang: typeof languages[number]['value']): string {
-    const header = `// Implement solve() below\n`
-    switch (lang) {
-      case 'python':
-        return `# Implement solve(input) below
+  const problemKey = getProblemKey(problem.title)
+  
+  const problemStarterCodes = starterCodes[problemKey]
+  
+  if(!problemStarterCodes) {
+    return getDefaultStarterCode(lang)
+  }
+
+  if(problemStarterCodes[lang]) {
+    return problemStarterCodes[lang]!
+  }
+
+  return getDefaultStarterCode(lang)
+}, [problem, starterCodes])
+
+function getDefaultStarterCode(lang: typeof languages[number]['value']): string {
+  const header = `// Implement solve() below\n`
+  switch (lang) {
+    case 'python':
+      return `# Implement solve(input) below
 def solve(input):
     # input is a dict, e.g. {"nums":[...], "target":...}
     return []
 `
-      case 'typescript':
-        return `${header}function solve(input: any) {
+    case 'typescript':
+      return `${header}function solve(input: any) {
   // input: { nums: number[], target: number }
   return [];
 }
 `
-      case 'java':
-        return `${header}public class Solution {
+    case 'java':
+      return `${header}public class Solution {
     public static void main(String[] args) {
         // For Java, send full program that reads stdin if you want to run here.
     }
@@ -141,43 +160,44 @@ def solve(input):
     }
 }
 `
-      case 'c':
-        return `${header}#include <stdio.h>
+    case 'c':
+      return `${header}#include <stdio.h>
 // For C/C++, send a full program that reads stdin JSON and prints the result.
 int main(void) {
     return 0;
 }
 `
-      case 'cpp':
-        return `${header}#include <bits/stdc++.h>
+    case 'cpp':
+      return `${header}#include <bits/stdc++.h>
 using namespace std;
 // For C/C++, send a full program that reads stdin JSON and prints the result.
 int main(){
     return 0;
 }
 `
-      case 'csharp':
-        return `${header}using System;
+    case 'csharp':
+      return `${header}using System;
 // For C#, send a full program that reads stdin JSON and prints the result.
 class Program {
     static void Main(string[] args) { }
 }
 `
-      case 'javascript':
-      default:
-        return `${header}function solve(input) {
+    case 'javascript':
+    default:
+      return `${header}function solve(input) {
   // input: { nums: number[], target: number }
   return [];
 }
 `
-    }
   }
+}
 
-  useEffect(() => {
-    if(problem && starterCodes) {
-      setCode(getStarterCodeForLanguage(language))
-    }
-  }, [language])
+useEffect(() => {
+  if(problem && starterCodes) {
+    const newCode = getStarterCodeForLanguage(language)
+    setCode(newCode)
+  }
+}, [language, problem, starterCodes, getStarterCodeForLanguage])
 
   // Timer seeded from query param (defaults to 10)
   const GAME_DURATION_SECONDS = Math.max(1, initialMinutes) * 60
@@ -210,6 +230,28 @@ class Program {
     const seconds = secondsLeft % 60
     return `${minutes}:${String(seconds).padStart(2, '0')}`
   }, [secondsLeft])
+
+
+  const callJudge = useCallback(async (endpoint: 'run' | 'submit') => {
+    try {
+      const res = await fetch(`${API_BASE}/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          problemId,
+          language: String(language).toLowerCase(),
+          sourceCode: code
+        })
+      })
+      const json = await res.json()
+      console.log(`[${endpoint}]`, json)
+    } catch (err) {
+      console.error(`[${endpoint}] error`, err)
+    }
+  }, [API_BASE, problemId, language, code])
+
+  const onRun = useCallback(() => { void callJudge('run') }, [callJudge])
+  const onSubmit = useCallback(() => { void callJudge('submit') }, [callJudge])
 
   if (loading) {
     return (

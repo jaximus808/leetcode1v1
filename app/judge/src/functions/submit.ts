@@ -81,7 +81,7 @@ async function runSingleTest(language_id: number, source_code: string, stdin: st
   const text = await res.text();
   let body: any = null;
   try { body = text ? JSON.parse(text) : null; } catch { /* keep raw */ }
-  return { status: res.status, body, raw: text };
+  return { status: res.status, body, raw: text, error: null };
 }
 
 async function getJSONFromStorage(bucket: string, key: string) {
@@ -135,11 +135,14 @@ export async function submit(request: HttpRequest, context: InvocationContext): 
       const r = await runSingleTest(language_id, program, stdin);
 
       const statusDesc = r.body?.status?.description ?? "Unknown";
+      const stdout = r.body?.stdout ?? "";
+      const stderr = r.body?.stderr ?? "";
+      const compile_output = r.body?.compile_output ?? "";
       const out = canonicalize(r.body?.stdout ?? "");
       const exp = canonicalize(expectedAsString(t));
       const ok = r.status === 201 && statusDesc === "Accepted" && out === exp;
       if (ok) passed++;
-      details.push({ status: statusDesc, ok });
+      details.push({ input: t.input, expected: expectedAsString(t), actual: stdout, compile_output: compile_output, stderr: stderr, time: r.body?.time ?? 0, memory: r.body?.memory ?? 0, status: statusDesc, ok: ok });
     
     }
 

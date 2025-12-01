@@ -80,22 +80,38 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       newSocket.on('joined-queue', (data: any) => {
         console.log('Joined queue, data:', data)
         setIsSearching(true)
-        if(data.position !== undefined) {
-          setQueuePosition(data.position)
+        if (data) {
+          if(data.position !== undefined) {
+            setQueuePosition(data.position)
+          }
+          if(data.eta !== undefined) {
+            setQueueEta(data.eta)
+          }
         }
-        if(data.eta !== undefined) {
-          setQueueEta(data.eta)
+        else {
+          console.warn('joined-queue event received with no data')
+          setQueuePosition(null)
+          setQueueEta(null)
         }
+        
       })
 
       newSocket.on('queue-update', (data: QueueUpdate) => {
         console.log('Queue position:', data.position)
-        setQueuePosition(data.position)
-        setQueueEta(data.eta || null)
+        if (data) {
+          setQueuePosition(data.position)
+          setQueueEta(data.eta || null)
+        } else {
+          console.warn('queue-update event received with no data')
+        }
       })
 
       newSocket.on('game-made', (data: { matchId: number, problemId: number }) => {
         console.log('Match found:', data)
+        if (!data) {
+          console.error('game-made event received with no data')
+          return
+        }
         setIsSearching(false)
         setQueuePosition(null)
         setQueueEta(null)
