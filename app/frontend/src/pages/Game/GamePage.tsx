@@ -1,12 +1,47 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 import './GamePage.css'
 import Editor from '@monaco-editor/react'
+import axios from 'axios'
+
+interface Problem {
+  id: number
+  title: string
+  difficulty: string
+  description: string
+  test_case_url?: string
+  starter_code_url?: string
+  constraints?: string[]
+  examples?: Array<{
+    input: string
+    output: string
+    explanation?: string
+  }>
+}
+
+interface StarterCodeJSON {
+  [problemKey: string]: {
+    javascript?: string
+    typescript?: string
+    python?: string
+    java?: string
+    c?: string
+    cpp?: string
+    csharp?: string
+  }
+}
 
 export default function GamePage() {
+  const { matchId } = useParams< { matchId: string } >()
   const location = useLocation()
   const params = new URLSearchParams(location.search)
+  const problemId = params.get('problemId')
   const initialMinutes = Number(params.get('t') ?? 10)
+
+  const [problem, setProblem] = useState<Problem | null>(null)
+  const [starterCodes, setStarterCodes] = useState<StarterCodeJSON | null>(null)
+  const [loading, setLoading] = useState(true)
+
   const languages = [
     { value: 'javascript', label: 'Javascript', monaco: 'javascript' },
     { value: 'typescript', label: 'Typescript', monaco: 'typescript' },
@@ -17,8 +52,69 @@ export default function GamePage() {
     { value: 'cpp', label: 'C++', monaco: 'cpp' },
     { value: 'csharp', label: 'C#', monaco: 'csharp' }
   ] as const
+
   const [language, setLanguage] = useState<typeof languages[number]['value']>('javascript')
-  function getStarterCode(lang: typeof languages[number]['value']): string {
+  const [code, setCode] = useState<string>('')
+
+  // Fetch problem data
+  useEffect(() => {
+    const fetchProblemData = async () => {
+      if (!problemId) {
+        console.error('No problemId provided')
+        setLoading(false)
+        return
+      }
+      
+      try {
+        const problemResponse = await axios.get(`http://localhost:3000/api/problems/${problemId}`)
+        const problemData = problemResponse.data
+        setProblem(problemData)
+        
+        if (problemData.starter_code_url) {
+          const starterCodeResponse = await axios.get(problemData.starter_code_url)
+          setStarterCodes(starterCodeResponse.data)
+          
+          const problemKey = getProblemKey(problemData.title)
+          if (starterCodeResponse.data[problemKey]) {
+            const initialCode = starterCodeResponse.data[problemKey][language]
+            setCode(initialCode || getDefaultStarterCode(language))
+          } else {
+            setCode(getDefaultStarterCode(language))
+          }
+        } else {
+          setCode(getDefaultStarterCode(language))
+        }
+      } catch (error) {
+        console.error('Failed to fetch problem data:', error)
+        setCode(getDefaultStarterCode(language))
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    fetchProblemData()
+  }, [problemId])
+
+  function getProblemKey(title: string): string {
+    return title.toLowerCase().replace(/ /g, '_')
+  }
+
+  function getStarterCodeForLanguage(lang: typeof languages[number]['value']): string {
+    if(!problem || !starterCodes) {
+      return getDefaultStarterCode(lang)
+    }
+
+    const problemKey = getProblemKey(problem.title)
+    const problemStarterCodes = starterCodes[problemKey]
+
+    if(problemStarterCodes && problemStarterCodes[lang]) {
+      return problemStarterCodes[lang]!
+    }
+
+    return getDefaultStarterCode(lang)
+  }
+
+  function getDefaultStarterCode(lang: typeof languages[number]['value']): string {
     const header = `// Implement solve() below\n`
     switch (lang) {
       case 'python':
@@ -38,7 +134,13 @@ export default function GamePage() {
         return `${header}function solve() {\n  // TODO\n}\n`
     }
   }
-  const [code, setCode] = useState<string>(getStarterCode(language))
+
+  useEffect(() => {
+    if(problem && starterCodes) {
+      setCode(getStarterCodeForLanguage(language))
+    }
+  }, [language])
+
   // Timer seeded from query param (defaults to 10)
   const GAME_DURATION_SECONDS = Math.max(1, initialMinutes) * 60
   const [secondsLeft, setSecondsLeft] = useState<number>(GAME_DURATION_SECONDS)
@@ -70,56 +172,81 @@ export default function GamePage() {
     const seconds = secondsLeft % 60
     return `${minutes}:${String(seconds).padStart(2, '0')}`
   }, [secondsLeft])
-  const problem = useMemo(
-    () => ({
-      title: 'Two Sum (Placeholder)',
-      difficulty: 'Easy',
-      description:
-        'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. You may assume that each input would have exactly one solution, and you may not use the same element twice.',
-      constraints: [
-        '2 <= nums.length <= 10^4',
-        '-10^9 <= nums[i] <= 10^9',
-        '-10^9 <= target <= 10^9',
-        'Only one valid answer exists'
-      ],
-      examples: [
-        { input: 'nums = [2,7,11,15], target = 9', output: '[0,1]' },
-        { input: 'nums = [3,2,4], target = 6', output: '[1,2]' }
-      ]
-    }),
-    []
-  )
+
+  if (loading) {
+    return (
+      <div className="game-root">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+          <p>Loading problem...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!problem) {
+    return (
+      <div className="game-root">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+          <p>Problem not found</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="game-root">
       <div className="game-main">
-        <aside className="game-left">
-          <div className="problem-head">
-            <h2 className="problem-title">{problem.title}</h2>
-            <span className="problem-badge">{problem.difficulty}</span>
-          </div>
-          <p className="problem-desc">{problem.description}</p>
-          <h3 style={{ margin: '16px 0 8px 0' }}>Constraints</h3>
-          <ul style={{ margin: 0, paddingLeft: 18, color: '#bdbdbd' }}>
-            {problem.constraints.map((c, i) => (
-              <li key={i} style={{ marginBottom: 6 }}>
-                {c}
-              </li>
-            ))}
-          </ul>
-          <h3 style={{ margin: '16px 0 8px 0' }}>Examples</h3>
-          <div className="problem-examples">
-            {problem.examples.map((ex, i) => (
-              <div key={i} className="example">
-                <div className="example-label">Input</div>
-                <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{ex.input}</pre>
-                <div style={{ height: 8 }} />
-                <div className="example-label">Output</div>
-                <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{ex.output}</pre>
+      <aside className="game-left">
+  <div className="problem-head">
+    <h2 className="problem-title">{problem.title}</h2>
+    <span className={`problem-badge ${problem.difficulty.toLowerCase()}`}>
+      {problem.difficulty}
+    </span>
+  </div>
+  
+  {/* Description */}
+  <div className="problem-desc">{problem.description}</div>
+  
+  {/* Examples */}
+  {problem.examples && problem.examples.length > 0 && (
+    <>
+      <h3 className="problem-section-header">Examples</h3>
+      <div className="problem-examples">
+        {problem.examples.map((ex, i) => (
+          <div key={i} className="example">
+            <div className="example-header">Example {i + 1}:</div>
+            <div className="example-item">
+              <div className="example-label">Input:</div>
+              <div className="example-content">{ex.input}</div>
+            </div>
+            <div className="example-item">
+              <div className="example-label">Output:</div>
+              <div className="example-content">{ex.output}</div>
+            </div>
+            {ex.explanation && (
+              <div className="example-item">
+                <div className="example-label">Explanation:</div>
+                <div className="example-content">{ex.explanation}</div>
               </div>
-            ))}
+            )}
           </div>
-        </aside>
+        ))}
+      </div>
+    </>
+  )}
+  
+  {/* Constraints */}
+  {problem.constraints && problem.constraints.length > 0 && (
+    <>
+      <h3 className="problem-section-header">Constraints:</h3>
+      <ul className="problem-constraints">
+        {problem.constraints.map((c, i) => (
+          <li key={i} dangerouslySetInnerHTML={{ __html: c }} />
+        ))}
+      </ul>
+    </>
+  )}
+</aside>
 
         <div className="editor-col">
           <div className="editor-toolbar" role="toolbar" aria-label="Editor controls">
@@ -131,7 +258,6 @@ export default function GamePage() {
                 onChange={(e) => {
                   const next = e.target.value as typeof languages[number]['value']
                   setLanguage(next)
-                  setCode(getStarterCode(next))
                 }}
               >
                 {languages.map((lang) => (
@@ -166,7 +292,14 @@ export default function GamePage() {
               wordWrap: 'on',
               scrollBeyondLastLine: false,
               smoothScrolling: true,
-              automaticLayout: true
+              automaticLayout: true,
+              scrollbar: {
+                vertical: 'hidden',
+                horizontal: 'hidden',
+                verticalScrollbarSize: 10,
+                horizontalScrollbarSize: 10,
+                useShadows: false
+              }
             }}
           />
         </div>

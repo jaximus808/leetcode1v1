@@ -132,11 +132,11 @@ func (mm *MatchMaker) decodeCode(code int) (string, string) {
 	// decode difficulty (1–3)
 	switch code % 10 {
 	case 1:
-		diff = "easy"
+		diff = "Easy"
 	case 2:
-		diff = "medium"
+		diff = "Medium"
 	case 3:
-		diff = "hard"
+		diff = "Hard"
 	default:
 		return "", ""
 	}
@@ -144,11 +144,11 @@ func (mm *MatchMaker) decodeCode(code int) (string, string) {
 	// decode time (10–30)
 	switch code - (code % 10) {
 	case 10:
-		time = "easy"
+		time = "10"
 	case 20:
-		time = "medium"
+		time = "20"
 	case 30:
-		time = "hard"
+		time = "30"
 	default:
 		return "", ""
 	}

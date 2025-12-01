@@ -24,6 +24,8 @@ async function createMatch(io, matchData) {
 
     const { difficulty, time_duration, matches } = group
 
+    const capitalizedDifficulty = difficulty.charAt(0).toUpperCase() + difficulty.slice(1).toLowerCase()
+    
     const { data: problem_data, error: problem_error } = await supabase
       .from("problems")
       .select("id")
@@ -33,12 +35,12 @@ async function createMatch(io, matchData) {
       continue
     }
 
-    if (!problem_data) {
+    if (!problem_data || problem_data.length === 0) {
       console.error('Could not get problems for the difficulty')
       continue
     }
     for (const match of matches) {
-      const problem_id = problem_data[Math.floor(Math.random() * problem_data.length)]
+      const problem_id = problem_data[Math.floor(Math.random() * problem_data.length)].id
 
       matchesInsertions.push(
         {
@@ -52,7 +54,7 @@ async function createMatch(io, matchData) {
     }
   }
 
-  const { data: matches_data, error: match_err } = await supabase.from('matches').insert(matchesInsertions).select('id, player1_id, player2_id')
+  const { data: matches_data, error: match_err } = await supabase.from('matches').insert(matchesInsertions).select('id, player1_id, player2_id, problem_id')
 
   if (match_err) {
     console.error("failed to insert all new matches", error)
@@ -65,11 +67,11 @@ async function createMatch(io, matchData) {
     
     console.log('Emitting match-found to player', match_data.player1_id);
     console.log('  Room:', p1Room, '| Sockets in room:', io.sockets.adapter.rooms.get(p1Room)?.size || 0);
-    io.to(p1Room).emit('match-found', { matchId: match_data.id });
+    io.to(p1Room).emit('match-found', { matchId: match_data.id, problemId: match_data.problem_id });
     
     console.log('Emitting match-found to player', match_data.player2_id);
     console.log('  Room:', p2Room, '| Sockets in room:', io.sockets.adapter.rooms.get(p2Room)?.size || 0);
-    io.to(p2Room).emit('match-found', { matchId: match_data.id });
+    io.to(p2Room).emit('match-found', { matchId: match_data.id, problemId: match_data.problem_id });
   }
   try {
     await producer.send({

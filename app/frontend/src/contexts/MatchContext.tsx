@@ -77,13 +77,13 @@ export function MatchProvider({ children }: { children: ReactNode }) {
         setQueueEta(data.eta || null)
       })
 
-      newSocket.on('match-found', (data: { matchId: number }) => {
+      newSocket.on('match-found', (data: { matchId: number, problemId: number }) => {
         console.log('Match found:', data)
         setIsSearching(false)
         setQueuePosition(null)
         setQueueEta(null)
         setTimeout(() => {
-          window.location.href = `/game/${data.matchId}`
+          window.location.href = `/game/${data.matchId}?problemId=${data.problemId}`
         }, 500)
       })
 
