@@ -41,7 +41,8 @@ func (mm *MatchMaker) determineMatch(p1 *game.MatchRequest, p2 *game.MatchReques
 	fmt.Printf("EloDiff: %f", eloDiff)
 
 	fmt.Printf("Match range %f", mm.matchRange*(1.0+mm.timeMult*math.Max(float64(time.Now().Unix()-p1.Timestamp), float64(time.Now().Unix()-p2.Timestamp))))
-	return eloDiff <= mm.matchRange*(1.0+mm.timeMult*math.Max(float64(time.Now().Unix()-p1.Timestamp), float64(time.Now().Unix()-p2.Timestamp)))
+	return eloDiff <= mm.matchRange
+	//*(1.0+mm.timeMult*math.Max(float64(time.Now().Unix()-p1.Timestamp), float64(time.Now().Unix()-p2.Timestamp)))
 }
 
 func (mm *MatchMaker) publishMatches(allMatches map[int][]*game.Match) error {
