@@ -120,15 +120,56 @@ async function queueUpdate(io, matchData) {
  */
 async function gameMade(io, matchData) {
   try {
-    const { playerIds } = matchData
+    const { playerIds, roomCode } = matchData
 
     for (const playerId of playerIds) {
       io.to(`player-${playerId}`).emit('game-made')
     }
 
+
+    supabase.from("matches").update({
+      status: 'ingame'
+    }).eq('id', roomCode)
+
   } catch (err) {
     console.error('Error processing match message:', err);
   }
+}
+/**
+ * @param {any} matchData - The match data.
+ * @returns {Promise<void>}
+ */
+async function gameOver(matchData) {
+
+  const { roomCode, winner, loser } = matchData
+
+  const eloGain = 30
+
+  supabase.from("matches").update({
+    status: 'completed'
+  }).eq(id, roomCode)
+
+  if (winner == -1) return;
+
+  const { data: winnerData, error: err1 } = supabase.from("players").select('elo').eq("id", winner)
+
+  const { data: loserData, error: err2 } = supabase.from("players").select('elo').eq("id", loser)
+
+  if (err1 || err2) {
+    console.error("something went wrong getting player info for game ending!")
+    return
+  }
+
+
+  supabase.from("players").update({
+    elo: winnerData.elo + eloGain
+  }).eq("id", winner)
+
+  supabase.from("players").update({
+    elo: loserData.elo - eloGain
+  }).eq("id", loser)
+
+  console.log("sucessfully updated elo!")
 }
 
 
@@ -141,7 +182,7 @@ async function connectKafka(io) {
   await matchRequestConsumer.connect();
   console.log("Kafka connected");
 
-  await matchRequestConsumer.subscribe({ topics: ["match-found", "queue-update", "game-made"], fromBeginning: false });
+  await matchRequestConsumer.subscribe({ topics: ["match-found", "queue-update", "game-made", "game-over"], fromBeginning: false });
 
 
   // TODO FINISH THIS SHIT
@@ -160,6 +201,9 @@ async function connectKafka(io) {
           case "game-made":
             await gameMade(io, matchData)
             break;
+          case "game-over":
+            await gameOver(matchData)
+            break
         }
       }
       catch (err) {
