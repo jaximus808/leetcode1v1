@@ -194,7 +194,7 @@ func (mm *MatchMaker) StartEngine() {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
-	// generates all our b trees
+	mm.players = make(map[int]*btree.BTree) // generates all our b trees
 	for diff := 1; diff <= 3; diff++ {
 		for t := 1; t <= 3; t++ {
 			code := diff*10 + t
