@@ -13,13 +13,50 @@ spec:
       labels:
         app: judge0-worker
     spec:
+      volumes:
+        - name: cgroup
+          hostPath:
+            path: /sys/fs/cgroup
+            type: Directory
+        - name: box
+          emptyDir: {}
       containers:
         - name: worker
           image: judge0/judge0:latest
           command: ["./scripts/workers"]
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+            runAsUser: 0
           env:
             - name: API_URL
               value: "http://judge0-api.judge0.svc.cluster.local:2358"
+            - name: JUDGE0_API_URL
+              value: "http://judge0-api.judge0.svc.cluster.local:2358"
+            - name: REDIS_URL
+              value: "redis://judge0-redis-master:6379"
+            - name: RESQUE_REDIS_URL
+              value: "redis://judge0-redis-master:6379"
+            - name: JUDGE0_VERSION
+              value: "0"
+            - name: QUEUE
+              value: "0"
+            - name: REDIS_HOST
+              value: "judge0-redis-master"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_PROVIDER
+              value: "REDIS_URL"
+            - name: REDIS
+              value: "redis://judge0-redis-master:6379"
+            - name: RESQUE_REDIS
+              value: "redis://judge0-redis-master:6379"
           envFrom:
             - secretRef:
                 name: judge0-conn
+          volumeMounts:
+            - name: cgroup
+              mountPath: /sys/fs/cgroup
+              readOnly: true
+            - name: box
+              mountPath: /box
