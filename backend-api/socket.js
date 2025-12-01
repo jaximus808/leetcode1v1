@@ -2,11 +2,16 @@ const jwt = require('jsonwebtoken');
 const { Server } = require("socket.io")
 const supabase = require('./supabase');
 const http = require('http');
+const { producer } = require('./kafka');
 
 const getPlayerIdFromToken = (token) => {
+
+  console.log('Verifying token:', token ? 'Token exists' : 'Token is null/undefined');
+  console.log('JWT_SECRET exists:', !!process.env.JWT_SECRET);
+
   try {
-    const user = jwt.verify(token, process.env.JWT_SECRET);
-    return user.playerid;
+    const user = jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey');
+    return user.id;
   } catch (err) {
     return null;
   }
@@ -45,10 +50,11 @@ function MakeSocketIOInstance(app) {
       */
     socket.on('join-queue', async (matchReq) => {
 
-      const { playerInfo, difficulty, time } = matchReq;
+      const { token, difficulty, time } = matchReq;
 
-      if (!playerInfo || !difficulty || !time) {
+      if (!token || !difficulty || !time) {
         socket.emit('queue-error', { msg: "missing important info" });
+        return;
       }
 
       // this will be decoded by jwt 
@@ -71,15 +77,23 @@ function MakeSocketIOInstance(app) {
       }
       try {
 
+        const timeMapping = {
+          '10': 'easy',
+          '20': 'medium',
+          '30': 'hard'
+        }
+
+        const mappedTime = timeMapping[time] || 'easy';
+        
         await producer.send({
           topic: 'match-requests',
           messages: [{
             key: player.id.toString(),
             value: JSON.stringify({
-              player_id: player.id,
+              player_id: player.id.toString(),
               elo_rank: player.elo,
               difficulty: difficulty,
-              time: time,
+              time: mappedTime,
               timestamp: Date.now()
             })
           }]
@@ -87,11 +101,17 @@ function MakeSocketIOInstance(app) {
 
         currentPlayerId = playerID
         socket.join(`player-${playerID}`)
+
+        console.log(`Player ${playerID} joined room: player-${playerID}`);
+        console.log(`Player ${socket.id} is now in rooms:`, Array.from(socket.rooms));
+        
+        console.log(`Player ${playerID} sent to matchmaking queue`);
+
       } catch (error) {
         socket.emit('queue-error', { msg: "not authorized" });
       }
       // send to kafka for matchmaking
-    })
+    });
 
     async function cancelQueue() {
       if (!currentPlayerId) {

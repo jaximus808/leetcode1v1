@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, useCallback } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { useAuth } from './AuthContext' //replace with actual auth
 import { io, Socket} from 'socket.io-client'
+import { useNavigate } from 'react-router-dom'
 
 
 interface QueueUpdate {
@@ -26,7 +27,7 @@ interface MatchContextType {
   isSearching: boolean
   queuePosition: number | null
   queueEta: number | null
-  findMatch: () => Promise<void>
+  findMatch: (difficulty: string, timeLimit: number) => Promise<void>
   cancelSearch: () => void
 }
 
@@ -38,57 +39,68 @@ export function MatchProvider({ children }: { children: ReactNode }) {
   const [socket, setSocket] = useState<Socket | null>(null)
   const [queuePosition, setQueuePosition] = useState<number | null>(null)
   const [queueEta, setQueueEta] = useState<number | null>(null) 
-  const { token, player } = useAuth() //or replace with some auth
+  const { token, user } = useAuth()
 
-  // Check for pending match
-  const checkForMatch = useCallback(async () => {
-    if (!token || !player) return
 
-    const newSocket = io('http://localhost:3000', {
-        auth: { token }
-    })
+  const navigate = useNavigate()
 
-    newSocket.emit('join', 'player-${player.id}')
-
-    newSocket.on('match-found', (match: Match) => {
-      console.log('Match found:', match)
-      setCurrentMatch(match)
-      setIsSearching(false)
-      setQueuePosition(null)
-      setQueueEta(null)
-    })
-
-    newSocket.on('queue-update', (data: QueueUpdate) => {
-        console.log('Queue position:', data.position)
-        setQueuePosition(data.position)
-        setQueueEta(data.eta || null)
-    })
-
-    setSocket(newSocket)
-
-    return() => {
-        newSocket.close()
+  useEffect(() => {
+    if (isSearching) {
+      navigate('/queue')
     }
-}, [token, player])
+  }, [isSearching, navigate])
 
   // Request a match
-  const findMatch = async () => {
-    if (!token || isSearching) return
+  const findMatch = async (difficulty: string, timeLimit: number) => {
+    if (!token || !user ||isSearching) return
 
     try {
-      setIsSearching(true)
 
-      const response = await fetch('http://localhost:3000/api/matches/request', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+      const newSocket = io('http://localhost:3000', {
+        auth: { token }
+      })
+      
+      newSocket.on('joined-queue', (data: any) => {
+        console.log('Joined queue, data:', data)
+        setIsSearching(true)
+        if(data.position !== undefined) {
+          setQueuePosition(data.position)
+        }
+        if(data.eta !== undefined) {
+          setQueueEta(data.eta)
         }
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to request match')
-      }
+      newSocket.on('queue-update', (data: QueueUpdate) => {
+        console.log('Queue position:', data.position)
+        setQueuePosition(data.position)
+        setQueueEta(data.eta || null)
+      })
+
+      newSocket.on('match-found', (data: { matchId: number }) => {
+        console.log('Match found:', data)
+        setIsSearching(false)
+        setQueuePosition(null)
+        setQueueEta(null)
+        setTimeout(() => {
+          window.location.href = `/game/${data.matchId}`
+        }, 500)
+      })
+
+      newSocket.on('queue-error', (error) => {
+        console.error('Queue error:', error)
+        setIsSearching(false)
+      })
+
+      setSocket(newSocket)
+
+      newSocket.emit('join', `player-${user?.id}`)
+
+      newSocket.emit('join-queue', {
+        token,
+        difficulty,
+        time: timeLimit.toString()
+      })
 
     } catch (err) {
       console.error('Error requesting match:', err)
@@ -101,7 +113,11 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     setIsSearching(false)
     setQueuePosition(null)
     setQueueEta(null)
-    socket.emit('cancel-search')
+    if (socket) {
+      socket.emit('cancel-search')
+      socket.close()
+      setSocket(null)
+    }
   }
 
   return (

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useMatch } from '../../contexts/MatchContext'
@@ -6,21 +6,56 @@ import './homepage.css'
 
 export default function HomePage() {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()   
+  const { user, logout, token } = useAuth()   
   const { isSearching, queuePosition, queueEta, findMatch, cancelSearch } = useMatch()
 
   const username = useMemo(() => user?.username ?? 'Player', [user])
 
+  const [stats, setStats] = useState({ wins: 0, losses: 0, elo: null })
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy')
   const [timeLimit, setTimeLimit] = useState<number>(10)
+
+
+  // Fetch player stats and current ELO
+useEffect(() => {
+  if (!user?.id) return
+
+  fetch(`http://localhost:3000/api/players/${user.id}`)
+    .then(res => res.json())
+    .then(playerData => {
+      return fetch(`http://localhost:3000/api/matches/player/${user.id}`)
+        .then(res => res.json())
+        .then(matches => {
+          let wins = 0
+          let losses = 0
+
+          matches.forEach((match: any) => {
+            if (match.status === 'completed' && match.result) {
+              const isPlayer1 = match.player1_id === user.id
+              const wonAsPlayer1 = match.result === 'player1' && isPlayer1
+              const wonAsPlayer2 = match.result === 'player2' && !isPlayer1
+              
+              if (wonAsPlayer1 || wonAsPlayer2) {
+                wins++
+              } else {
+                losses++
+              }
+            }
+          })
+
+          setStats({ wins, losses, elo: playerData.elo ?? 100 })
+        })
+    })
+    .catch(err => console.error('Failed to fetch player data:', err))
+}, [user?.id])
 
   const onJoinQueue = useCallback(() => {
     if (!user) {
       navigate('/login')
       return
     }
-    findMatch()
-  }, [user, navigate, findMatch])
+    findMatch(difficulty, timeLimit)
+  }, [user, navigate, findMatch, difficulty, timeLimit])
 
   return (
     <div className="home-container">
@@ -79,7 +114,7 @@ export default function HomePage() {
                   <div className="avatar">{username.slice(0, 1).toUpperCase()}</div>
                   <div className="profile-meta">
                     <div className="profile-name">{username}</div>
-                    <div className="profile-sub">{user.elo ?? 0} • W 0 / L 0</div>
+                    <div className="profile-sub">{stats.elo} ELO • W {stats.wins} / L {stats.losses}</div>
                   </div>
                 </div>
               </section>

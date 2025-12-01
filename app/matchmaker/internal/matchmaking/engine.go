@@ -30,6 +30,7 @@ func NewMatchMaker(producer *broker.KafkaProducer, matchRange float64, timeMult 
 }
 
 // acceptable range expands as tiemstamp that maxd of one the other players has been waiting for a match
+// BUG: no matter what elo difference, players will be matched instantly
 func (mm *MatchMaker) determineMatch(p1 *game.MatchRequest, p2 *game.MatchRequest) bool {
 	if p1 == nil || p2 == nil {
 		return false
@@ -43,9 +44,25 @@ func (mm *MatchMaker) publishMatches(allMatches map[int][]*game.Match) error {
 	// Publish the match
 	//
 
+	hasMatches := false
+	for _, matches := range allMatches {
+		if len(matches) > 0 {
+			hasMatches = true
+			break
+		}
+	}
+	if !hasMatches {
+		return nil
+	}
+	
 	matchGroup := []*game.MatchGroup{}
 
 	for keyCode, matches := range allMatches {
+
+		if len(matches) == 0 {
+			continue
+		}
+
 		diff, time := mm.decodeCode(keyCode)
 
 		matchGroup = append(matchGroup, &game.MatchGroup{
@@ -191,8 +208,43 @@ func (mm *MatchMaker) StartEngine() {
 			}
 
 			playerQueue := mm.players[queueKey]
-
 			playerQueue.ReplaceOrInsert(req)
+
+			position := 0
+			playerQueue.Ascend(func(item btree.Item) bool {
+				p := item.(*game.MatchRequest)
+				if p.EloRank <= req.EloRank {
+					position++
+				}
+				if p.PlayerID == req.PlayerID {
+					return false
+				}
+				return true
+			})
+
+			playersAhead := position - 1
+			if playersAhead < 0 {
+				playersAhead = 0
+			}
+
+			estimatedWait := (playersAhead / 2) * 2 //in seconds
+
+			queueUpdate := &game.QueueUpdates{
+				PlayerID: req.PlayerID,
+				Status:   1, //1 = joined queue
+				Message:  "joined queue",
+				Position: position,
+				ETA:      estimatedWait,
+				Timestamp: time.Now().Unix(),
+			}
+
+			err := mm.producer.PublishUpdate(queueUpdate)
+			if err != nil {
+				fmt.Printf("Failed to publish queue update: %v\n", err)
+			} else {
+				fmt.Printf("Player %s added to queue (code: %d)", req.PlayerID, queueKey)
+			}
+			
 		case <-ticker.C:
 			allMatches := mm.attemptMatch()
 

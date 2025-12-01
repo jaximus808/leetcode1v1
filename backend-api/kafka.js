@@ -60,8 +60,16 @@ async function createMatch(io, matchData) {
   }
 
   for (const match_data of matches_data) {
-    io.to(`player-${match_data.player1_id}`).emit('match-found');
-    io.to(`player-${match_data.player2_id}`).emit('match-found');
+    const p1Room = `player-${match_data.player1_id}`;
+    const p2Room = `player-${match_data.player2_id}`;
+    
+    console.log('Emitting match-found to player', match_data.player1_id);
+    console.log('  Room:', p1Room, '| Sockets in room:', io.sockets.adapter.rooms.get(p1Room)?.size || 0);
+    io.to(p1Room).emit('match-found', { matchId: match_data.id });
+    
+    console.log('Emitting match-found to player', match_data.player2_id);
+    console.log('  Room:', p2Room, '| Sockets in room:', io.sockets.adapter.rooms.get(p2Room)?.size || 0);
+    io.to(p2Room).emit('match-found', { matchId: match_data.id });
   }
   try {
     await producer.send({
@@ -87,13 +95,17 @@ async function createMatch(io, matchData) {
  */
 async function queueUpdate(io, matchData) {
   try {
-    const { type, player_id } = matchData
+    const { player_id, status, msg, position, eta } = matchData
 
-    switch (type) {
-      case "joined_queue":
-        io.to(`player-${player_id}`).emit('joined-queue')
-        break
-    }
+    console.log(`Queue update for player ${player_id}: ${ msg, position, eta }`);
+
+    io.to(`player-${player_id}`).emit('joined-queue', {
+      message: 'You are now in queue',
+      status: status,
+      position: position,
+      eta: eta
+    });
+
   } catch (err) {
     console.error('Error processing match message:', err);
   }
@@ -128,7 +140,7 @@ async function connectKafka(io) {
   await matchRequestConsumer.connect();
   console.log("Kafka connected");
 
-  await matchRequestConsumer.subscribe({ topic: ["match-found", "queue-update", "game-made"], fromBeginning: false });
+  await matchRequestConsumer.subscribe({ topics: ["match-found", "queue-update", "game-made"], fromBeginning: false });
 
 
   // TODO FINISH THIS SHIT
@@ -139,16 +151,14 @@ async function connectKafka(io) {
         console.log('Received match:', matchData);
         switch (topic) {
           case "queue-update":
-            queueUpdate(io, matchData)
+            await queueUpdate(io, matchData)
             break;
           case "match-found":
-            createMatch(io, matchData)
+            await createMatch(io, matchData)
             break;
           case "game-made":
-            gameMade(io, matchData)
+            await gameMade(io, matchData)
             break;
-
-
         }
       }
       catch (err) {
