@@ -110,7 +110,7 @@ router.post('/', upload.single('testCaseFile'), async (req, res) => {
     const { data, error } = await supabase
       .from('problems')
       .insert([
-        { title, description, difficulty, test_case_url: testCaseUrl }
+        { title, description, difficulty, test_case_url: testCaseUrl, starter_code_url: req.body.starter_code_url || null }
       ])
       .select()
       .single();
@@ -120,6 +120,25 @@ router.post('/', upload.single('testCaseFile'), async (req, res) => {
     res.status(201).json(data);
   } catch (err) {
     res.status(400).json({ message: 'Error creating problem', error: err.message });
+  }
+});
+
+// GET single problem by ID
+router.get('/:problemId', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('problems')
+      .select('*')
+      .eq('id', req.params.problemId)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ message: 'Problem not found' });
+    }
+
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching problem', error: err.message });
   }
 });
 
