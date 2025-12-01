@@ -1,8 +1,8 @@
 import { Socket } from "socket.io"
 
 export type Player = {
-  Id: string
+  Id: number
   name: string
-  socket: Socket | null
-  score: 0
+  socketId: string
+  score: number
 }

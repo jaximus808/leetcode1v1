@@ -12,13 +12,6 @@ export function InitSocket(app: Express.Application) {
     }
   });
 
-  io.on('connection', (socket) => {
-    socket.on('join_room', (room: string) => {
-      socket.join(room);
-      console.log(`User ${socket.id} joined room: ${room}`);
-      socket.to(room).emit('user_joined', { userId: socket.id });
-    });
-  })
 
   return { httpServer, io }
 
