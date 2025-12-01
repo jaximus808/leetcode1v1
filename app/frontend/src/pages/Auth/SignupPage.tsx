@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import './SignupPage.css'
 
 export default function SignupPage() {
@@ -61,6 +61,10 @@ export default function SignupPage() {
         <button type="submit" className="auth-submit" onClick={handleSignup} disabled={loading}>
           {loading ? 'Creating account...' : 'Create account'}
         </button>
+        <div style={{ marginTop: 12, textAlign: 'center', color: '#bdbdbd' }}>
+          <span>Already have an account? </span>
+          <Link to="/login" style={{ color: 'var(--gold)', textDecoration: 'none' }}>Log in here</Link>
+        </div>
       </form>
     </div>
   )
