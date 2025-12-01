@@ -29,7 +29,7 @@ async function createMatch(io, matchData) {
     const { data: problem_data, error: problem_error } = await supabase
       .from("problems")
       .select("id")
-      .eq("difficulty", difficulty)
+      .eq("difficulty", capitalizedDifficulty)
     if (problem_error) {
       console.error('Could not get problems for the difficulty', problem_error)
       continue
@@ -120,10 +120,13 @@ async function queueUpdate(io, matchData) {
  */
 async function gameMade(io, matchData) {
   try {
-    const { playerIds, roomCode } = matchData
+    const { playerIds, roomCode, problemId } = matchData
 
     for (const playerId of playerIds) {
-      io.to(`player-${playerId}`).emit('game-made')
+      io.to(`player-${playerId}`).emit('game-made', {
+        matchId: roomCode, 
+        
+      })
     }
 
 
