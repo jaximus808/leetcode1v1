@@ -25,7 +25,7 @@ async function createMatch(io, matchData) {
     const { difficulty, time_duration, matches } = group
 
     const capitalizedDifficulty = difficulty.charAt(0).toUpperCase() + difficulty.slice(1).toLowerCase()
-    
+
     const { data: problem_data, error: problem_error } = await supabase
       .from("problems")
       .select("id")
@@ -64,11 +64,11 @@ async function createMatch(io, matchData) {
   for (const match_data of matches_data) {
     const p1Room = `player-${match_data.player1_id}`;
     const p2Room = `player-${match_data.player2_id}`;
-    
+
     console.log('Emitting match-found to player', match_data.player1_id);
     console.log('  Room:', p1Room, '| Sockets in room:', io.sockets.adapter.rooms.get(p1Room)?.size || 0);
     io.to(p1Room).emit('match-found', { matchId: match_data.id, problemId: match_data.problem_id });
-    
+
     console.log('Emitting match-found to player', match_data.player2_id);
     console.log('  Room:', p2Room, '| Sockets in room:', io.sockets.adapter.rooms.get(p2Room)?.size || 0);
     io.to(p2Room).emit('match-found', { matchId: match_data.id, problemId: match_data.problem_id });
@@ -99,7 +99,7 @@ async function queueUpdate(io, matchData) {
   try {
     const { player_id, status, msg, position, eta } = matchData
 
-    console.log(`Queue update for player ${player_id}: ${ msg, position, eta }`);
+    console.log(`Queue update for player ${player_id}: ${msg, position, eta}`);
 
     io.to(`player-${player_id}`).emit('joined-queue', {
       message: 'You are now in queue',
@@ -120,13 +120,12 @@ async function queueUpdate(io, matchData) {
  */
 async function gameMade(io, matchData) {
   try {
-    const { type, player_id, room_code } = matchData
+    const { playerIds } = matchData
 
-    switch (type) {
-      case "joined_queue":
-        io.to(`player-${player_id}`).emit('game-made', room_code)
-        break
+    for (const playerId of playerIds) {
+      io.to(`player-${playerId}`).emit('game-made')
     }
+
   } catch (err) {
     console.error('Error processing match message:', err);
   }
