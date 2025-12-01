@@ -29,7 +29,7 @@ async function createMatch(io, matchData) {
     const { data: problem_data, error: problem_error } = await supabase
       .from("problems")
       .select("id")
-      .eq("difficulty", difficulty)
+      .eq("difficulty", capitalizedDifficulty)
     if (problem_error) {
       console.error('Could not get problems for the difficulty', problem_error)
       continue
