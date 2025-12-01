@@ -9,6 +9,7 @@ type Room = {
   difficulty: string
   timeDuration: number
   players: Record<string, Player>
+  expectedPlayers: number[]
   status: 'waiting' | 'ingame' | 'completed'
   startTime: number | null
   timerOwnerPod: string | null
@@ -48,6 +49,7 @@ export class RoomManager {
       roomCode: match.id,
       problemID: match.problem_id,
       players: {},
+      expectedPlayers: [match.player1_id, match.player2_id],
       status: 'waiting',
       startTime: null,
       timerOwnerPod: null,
@@ -74,6 +76,7 @@ export class RoomManager {
       { EX: 3600 }
     );
     console.log("Room Created")
+    return room
   }
 
   async getRoom(roomCode: string): Promise<Room | null> {

@@ -1,9 +1,56 @@
-import { createKafkaClient } from "kafka-ts";
+import { Kafka, Producer } from 'kafkajs'
 import { RoomManager } from "../game/roommanager";
+import { MatchResponse, MatchResponseSchema } from './match';
+import z from 'zod';
 
-export function startKafkaClient(clientID: string, roomManager: RoomManager) {
-  const kafka = createKafkaClient({
-    clientId: 'game-server',
-    bootstrapServers: [{ host: 'localhost', port: 9092 }],
+const kafka = new Kafka({
+  clientId: 'game-server',
+  brokers: ["localhost:9092"]
+})
+export async function startKafkaClient(roomManager: RoomManager): Promise<Producer> {
+  const producer = kafka.producer()
+  const consumer = kafka.consumer({ groupId: 'backend-gameserver' })
+
+  await producer.connect()
+  await consumer.connect()
+
+  console.log("kafka connected")
+
+  await consumer.subscribe({ topics: ['room-create'] })
+
+  consumer.run({
+    eachMessage: async ({ message }) => {
+      try {
+        if (message.value) {
+          const data = JSON.parse(message.value.toString())
+
+          const matchResponseData: MatchResponse = MatchResponseSchema.parse(data);
+
+          matchResponseData.matches.forEach(async (match) => {
+            console.log(`Match ID: ${match.id}`);
+            const room = await roomManager.createRoom(match)
+
+            producer.send({
+              topic: 'game-made',
+              messages: [{
+                key: `game-made-${Date.now()}`,
+                value: JSON.stringify({
+                  playerIds: room.expectedPlayers
+                })
+              }]
+            })
+          });
+        }
+      } catch (err) {
+        if (err instanceof z.ZodError) {
+          console.error('Validation Error: Incoming Kafka message does not match schema.', err);
+
+        } else {
+          // Handle JSON parsing errors or other exceptions
+          console.error('General Error processing message:', err);
+        }
+      }
+    }
   })
+  return producer
 }

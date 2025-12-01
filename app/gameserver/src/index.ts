@@ -6,6 +6,7 @@ import { InitSocket } from './socket';
 import { initializeRedis, stopRedis } from './redis';
 import { RoomManager } from './game/roommanager';
 import { handleIO } from './game/sockethandlers';
+import { startKafkaClient } from './kafka/kafka';
 
 const app = express()
 
@@ -21,6 +22,8 @@ async function start() {
   await roomManager.initialize()
 
   handleIO(io, roomManager)
+
+  startKafkaClient(roomManager)
 
   httpServer.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
