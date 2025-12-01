@@ -62,7 +62,7 @@ useEffect(() => {
       <div className="home-shell">
         <aside className="left-nav">
           { user ? (<div className="left-nav-list">
-            <button className="left-nav-item" onClick={() => document.getElementById('recent-games')?.scrollIntoView({ behavior: 'smooth' })}>
+            <button className="left-nav-item" onClick={() => navigate("/history")}>
               <span className="left-nav-icon">...</span>
               <span>Game History</span>
             </button>
