@@ -38,7 +38,7 @@ func main() {
 
 	// Starting Game Engine
 
-	engine := matchmaking.NewMatchMaker(producer, 100, 0.01)
+	engine := matchmaking.NewMatchMaker(producer, 100, 0.005)
 
 	go engine.StartEngine()
 

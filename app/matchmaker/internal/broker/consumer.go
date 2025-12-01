@@ -108,7 +108,7 @@ func (kc *KafkaConsumer) ConsumeMessages(ctx context.Context, handler func(*game
 				log.Printf("Failed to unmarshal message: %v\n", err)
 				continue
 			}
-
+			request.Timestamp = time.Now().Unix()
 			// Process the message
 			err = handler(&request)
 			if err != nil {
