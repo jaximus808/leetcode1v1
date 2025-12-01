@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/cse4207-fall-2025/finalproject-jujujaju/app/matchmaker/internal/config"
@@ -63,18 +64,18 @@ func (kp *KafkaProducer) PublishUpdate(update *game.QueueUpdates) error {
 	return nil
 }
 
-func (kp *KafkaProducer) PublishMatch(match *game.Match) error {
+func (kp *KafkaProducer) PublishMatch(match *game.MatchBatch) error {
 	data, err := json.Marshal(match)
 	if err != nil {
 		return fmt.Errorf("failed to marshal data %s", err.Error())
 	}
-
+	key := fmt.Sprintf("batch-%d", time.Now().Unix())
 	msg := &kafka.Message{
 		TopicPartition: kafka.TopicPartition{
 			Topic:     &config.TopicMatchFound,
 			Partition: kafka.PartitionAny,
 		},
-		Key:   []byte(match.MatchID),
+		Key:   []byte(key),
 		Value: data,
 	}
 

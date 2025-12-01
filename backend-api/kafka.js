@@ -16,73 +16,70 @@ const matchRequestConsumer = kafka.consumer({ groupId: "backend-match-results" }
  * @returns {Promise<void>}
  */
 async function createMatch(io, matchData) {
-  try {
+  const { groups } = matchData
 
-    const { player_ids, difficulty, duration } = matchData
+  const matchesInsertions = []
 
-    const { problem_data, problem_error } = await supabase
+  for (const group of groups) {
+
+    const { difficulty, time_duration, matches } = group
+
+    const { data: problem_data, error: problem_error } = await supabase
       .from("problems")
       .select("id")
       .eq("difficulty", difficulty)
-      .order("random()")
-      .limit(1);
-
     if (problem_error) {
-      console.error('Error saving match to database:', problem_error);
-      return
+      console.error('Could not get problems for the difficulty', problem_error)
+      continue
     }
 
     if (!problem_data) {
-      console.error('Error saving match to database: NO PROLBME FOR GIVEN DIFFICULTY');
-      return
+      console.error('Could not get problems for the difficulty')
+      continue
     }
+    for (const match of matches) {
+      const problem_id = problem_data[Math.floor(Math.random() * problem_data.length)]
 
-    const problem_id = problem_data.id
-
-    const { match_data, error } = await supabase
-      .from('matches')
-      .insert([
+      matchesInsertions.push(
         {
-          player1_id: parseInt(player_ids[0]),
-          player2_id: parseInt(player_ids[1]),
+          player1_id: parseInt(match.player_ids[0]),
+          player2_id: parseInt(match.player_ids[1]),
           status: 'pending',
-          problem_id: problem_id
+          problem_id: problem_id,
+          time_duration: time_duration,
         }
-      ])
-      .select('id')
-      .single();
-
-    if (error) {
-      console.error('Error saving match to database:', error);
-      return
+      )
     }
+  }
 
-    const match_id = match_data.id
+  const { data: matches_data, error: match_err } = await supabase.from('matches').insert(matchesInsertions).select('id, player1_id, player2_id')
 
+  if (match_err) {
+    console.error("failed to insert all new matches", error)
+    return
+  }
 
+  for (const match_data of matches_data) {
+    io.to(`player-${match_data.player1_id}`).emit('match-found');
+    io.to(`player-${match_data.player2_id}`).emit('match-found');
+  }
+  try {
     await producer.send({
       topic: 'room-create',
       messages: [{
-        key: match_id.toString(),
+        key: `room-create-${Date.now()}`,
         value: JSON.stringify({
-          players: player_ids,
-          duration: duration,
-          problem_id: problem_id,
-          match_id: match_id,
+          matches: matchesInsertions,
           timestamp: Date.now()
         })
       }]
     });
 
-    io.to(`player-${data.player1_id}`).emit('match-found');
-    io.to(`player-${data.player2_id}`).emit('match-found');
-
-    console.log('Match pushed via WebSocket');
-  } catch (err) {
-    console.error('Error processing match message:', err);
+  } catch (error) {
+    console.error("failed to produce kafka message for creating rooms", error)
   }
-}
 
+}
 /**
  * @param {import('socket.io').Server} io - The Socket.IO server instance.
  * @param {any} matchData - The match data.
