@@ -54,58 +54,20 @@ export default function GamePage() {
   const [myProgress, setMyProgress] = useState<TestProgress>({ passed: 0, total: 0 });
   const [opponentProgress, setOpponentProgress] = useState<TestProgress>({ passed: 0, total: 0 });
   const [gameSocket, setGameSocket] = useState<Socket | null>(null);
+  const [totalTests, setTotalTests] = useState<number>(0);
   const { user } = useAuth()
 
   const [gameOver, setGameOver] = useState(false);
   const [winner, setWinner] = useState<{ id: number; isMe: boolean } | null>(null);
 
-useEffect(() => {
-  if (!matchId || !user) return;
-
-  // Connect to game server
-  const socket = io('http://localhost:3000', {
-    query: { matchId, userId: user.id }
-  });
-
-  socket.on('connect', () => {
-    console.log('Connected to game server');
-    socket.emit('join_room', { roomCode: matchId, userId: user.id, username: user.username });
-  });
-
-  // Listen for test progress updates
-  socket.on('test-progress', (data: TestProgress) => {
-    console.log('Test progress:', data);
-    console.log('Comparing: ', data.playerId, 'with', user.id, 'and', user.id.toString());
-
-    if (String(data.playerId) === String(user.id)) {
-      setMyProgress({ passed: data.passed, total: data.total });
-    } else {
-      setOpponentProgress({ passed: data.passed, total: data.total });
-    }
-  });
-
-  // NEW: Listen for game over
-  socket.on('game-over', (data: { winnerId: number; loserId: number; winnerScore: number; reason: string }) => {
-    console.log('🏆 Game Over!', data);
-    setGameOver(true);
-    setWinner({
-      id: data.winnerId,
-      isMe: data.winnerId == user.id
-    });
-  });
-
-  setGameSocket(socket);
-
-  return () => {
-    socket.disconnect();
-  };
-}, [matchId, user]);
+  const [runResults, setRunResults] = useState<any>(null);
+  const [showRunModal, setShowRunModal] = useState(false);
 
   useEffect(() => {
     if (!matchId || !user) return;
 
     // Connect to game server
-    const socket = io('http://localhost:3000', {  // Update with your game server URL
+    const socket = io('http://localhost:3000', {
       query: { matchId, userId: user.id }
     });
 
@@ -126,6 +88,16 @@ useEffect(() => {
       }
     });
 
+    // NEW: Listen for game over
+    socket.on('game-over', (data: { winnerId: number; loserId: number; winnerScore: number; reason: string }) => {
+      console.log('🏆 Game Over!', data);
+      setGameOver(true);
+      setWinner({
+        id: data.winnerId,
+        isMe: data.winnerId == user.id
+      });
+    });
+
     setGameSocket(socket);
 
     return () => {
@@ -133,7 +105,32 @@ useEffect(() => {
     };
   }, [matchId, user]);
 
+  const [opponentName, setOpponentName] = useState<string>('Opponent');
+  
+  useEffect(() => {
+    const fetchMatchData = async () => {
+      if (!matchId || !user) return;
 
+      try {
+        const response = await axios.get(`http://localhost:3000/api/matches/${matchId}`);
+        const matchData = response.data;
+
+        const opponentId = matchData.player1_id === user.id ? matchData.player2_id : matchData.player1_id;
+
+        const opponentUsername = matchData.player1_id === user.id ? matchData.player2.username : matchData.player1.username;
+
+        if (opponentUsername) {
+          setOpponentName(opponentUsername);
+        }
+      } catch (error) {
+        console.error('Error fetching match data:', error);
+      }
+    };
+
+    fetchMatchData();
+  }, [matchId, user]);
+
+  // Fetch problem data
   const languages = [
     { value: 'javascript', label: 'Javascript', monaco: 'javascript' },
     { value: 'typescript', label: 'Typescript', monaco: 'typescript' },
@@ -163,6 +160,30 @@ useEffect(() => {
         const problemResponse = await axios.get(`http://localhost:3000/api/problems/${problemId}`)
         const problemData = problemResponse.data
         setProblem(problemData)
+
+        if (problemData.test_case_url) {
+          try {
+            const testCaseResponse = await axios.get(problemData.test_case_url)
+            const testData = testCaseResponse.data
+            let testCount = 0;
+            if (Array.isArray(testData)) {
+              testCount = testData.length;
+            } else if (testData?.tests) {
+              testCount = testData.tests.length;
+            } else if (testData?.samples) {
+              testCount = testData.samples.length;
+            }
+
+            setTotalTests(testCount);
+            // Initialize progress bars with total
+            setMyProgress({ passed: 0, total: testCount });
+            setOpponentProgress({ passed: 0, total: testCount });
+          } catch (err) {
+            console.error('Failed to fetch test cases:', err);
+          }
+        } else {
+          setTotalTests(0)
+        }
 
         if (problemData.starter_code_url) {
           const starterCodeResponse = await axios.get(problemData.starter_code_url)
@@ -338,6 +359,12 @@ class Program {
       })
       const json = await res.json()
       console.log(`[${endpoint}]`, json)
+
+      if (endpoint === 'run') {
+        setRunResults(json)
+        setShowRunModal(true)
+      }
+
     } catch (err) {
       console.error(`[${endpoint}] error`, err)
     }
@@ -364,6 +391,79 @@ class Program {
         </div>
       </div>
     )
+  }
+
+  if (showRunModal && runResults) {
+    return (
+      <div className="game-root">
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: '#1a1a1a',
+            padding: '2rem',
+            borderRadius: '12px',
+            border: '2px solid #3b82f6',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'auto'
+          }}>
+            <h2 style={{ color: '#e5e7eb', marginBottom: '1rem' }}>
+              Run Results: {runResults.passed}/{runResults.total} Sample Tests Passed
+            </h2>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              {runResults.results?.map((result: any, i: number) => (
+                <div key={i} style={{
+                  backgroundColor: result.ok ? '#065f46' : '#7f1d1d',
+                  padding: '1rem',
+                  marginBottom: '0.5rem',
+                  borderRadius: '8px',
+                  border: result.ok ? '1px solid #10b981' : '1px solid #ef4444'
+                }}>
+                  <div style={{ color: '#e5e7eb', fontWeight: 600, marginBottom: '0.5rem' }}>
+                    Test Case {i + 1}: {result.ok ? '✓ Passed' : '✗ Failed'}
+                  </div>
+                  <div style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
+                    <div><strong>Input:</strong> {JSON.stringify(result.input)}</div>
+                    <div><strong>Expected:</strong> {result.expected}</div>
+                    <div><strong>Actual:</strong> {result.actual}</div>
+                    {result.stderr && <div style={{ color: '#ef4444' }}><strong>Error:</strong> {result.stderr}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowRunModal(false)}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                fontSize: '1rem',
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 600
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (gameOver && winner) {
@@ -397,17 +497,17 @@ class Program {
             }}>
               {winner.isMe ? '🏆 Victory!' : '💔 Defeat'}
             </h1>
-            
+
             <p style={{
               fontSize: '1.5rem',
               color: '#cfcfcf',
               marginBottom: '2rem'
             }}>
-              {winner.isMe 
-                ? 'You completed all test cases first!' 
+              {winner.isMe
+                ? 'You completed all test cases first!'
                 : 'Your opponent completed all test cases first.'}
             </p>
-            
+
             <div style={{
               display: 'flex',
               gap: '1rem',
@@ -429,7 +529,7 @@ class Program {
               >
                 Return Home
               </button>
-              
+
               <button
                 onClick={() => window.location.reload()}
                 style={{
@@ -592,7 +692,7 @@ class Program {
               </div>
               <div className="progress-item">
                 <div className="progress-head">
-                  <span style={{ color: '#cfcfcf' }}>Opponent</span>
+                  <span style={{ color: '#cfcfcf' }}>{opponentName}</span>
                   <span style={{ color: '#9ca3af', fontSize: 12 }}>{opponentProgress.passed} / {opponentProgress.total} tests</span>
                 </div>
                 <div className="progress-track"><div className="progress-fill-op" style={{ width: opponentProgress.total > 0 ? `${(opponentProgress.passed / opponentProgress.total) * 100}%` : '0%' }} /></div>
