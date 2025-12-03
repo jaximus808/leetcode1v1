@@ -3,12 +3,14 @@ const supabase = require('./supabase');
 
 const kafka = new Kafka({
   clientId: "backend-api",
-  brokers: ["localhost:9092"]   // our Kafka broker
+  brokers: ["localhost:9092"],   // our Kafka broker
+  connectionTimeout: 10000,
+  requestTimeout: 30000
 });
 
 
 const producer = kafka.producer();
-const matchRequestConsumer = kafka.consumer({ groupId: "backend-match-results" });
+const matchRequestConsumer = kafka.consumer({ groupId: "backend-match-results", sessionTimeout: 30000, heartbeatInterval: 3000, maxWaitTimeInMs: 10000 });
 
 /**
  * @param {import('socket.io').Server} io - The Socket.IO server instance.
@@ -125,8 +127,8 @@ async function gameMade(io, matchData) {
 
     for (const playerId of playerIds) {
       io.to(`player-${playerId}`).emit('game-made', {
-        matchId: roomCode, 
-        
+        matchId: roomCode,
+
       })
     }
 

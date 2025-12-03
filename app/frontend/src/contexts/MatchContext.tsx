@@ -1,14 +1,14 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { useAuth } from './AuthContext' //replace with actual auth
-import { io, Socket} from 'socket.io-client'
+import { io, Socket } from 'socket.io-client'
 import { useNavigate } from 'react-router-dom'
 
 
 interface QueueUpdate {
-    position: number
-    eta?: number
-    playersAhead?: number
+  position: number
+  eta?: number
+  playersAhead?: number
 }
 
 export interface Match {
@@ -55,7 +55,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
   const [isSearching, setIsSearching] = useState(false)
   const [socket, setSocket] = useState<Socket | null>(null)
   const [queuePosition, setQueuePosition] = useState<number | null>(null)
-  const [queueEta, setQueueEta] = useState<number | null>(null) 
+  const [queueEta, setQueueEta] = useState<number | null>(null)
   const { token, user } = useAuth()
 
 
@@ -69,22 +69,25 @@ export function MatchProvider({ children }: { children: ReactNode }) {
 
   // Request a match
   const findMatch = async (difficulty: string, timeLimit: number) => {
-    if (!token || !user ||isSearching) return
+    console.log('🔐 Token:', token);
+    console.log('👤 User:', user);
 
+    if (!token || !user || isSearching) return
+    console.error('Missing token or user, or already searching');
     try {
 
       const newSocket = io('http://localhost:3000', {
         auth: { token }
       })
-      
+
       newSocket.on('joined-queue', (data: any) => {
         console.log('Joined queue, data:', data)
         setIsSearching(true)
         if (data) {
-          if(data.position !== undefined) {
+          if (data.position !== undefined) {
             setQueuePosition(data.position)
           }
-          if(data.eta !== undefined) {
+          if (data.eta !== undefined) {
             setQueueEta(data.eta)
           }
         }
@@ -93,7 +96,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
           setQueuePosition(null)
           setQueueEta(null)
         }
-        
+
       })
 
       newSocket.on('queue-update', (data: QueueUpdate) => {
@@ -170,9 +173,9 @@ export function MatchProvider({ children }: { children: ReactNode }) {
 }
 
 export function useMatch() {
-    const context = useContext(MatchContext)
-    if (context === undefined) {
-      throw new Error('useMatch must be used within a MatchProvider')
-    }
-    return context
+  const context = useContext(MatchContext)
+  if (context === undefined) {
+    throw new Error('useMatch must be used within a MatchProvider')
+  }
+  return context
 }

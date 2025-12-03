@@ -34,7 +34,7 @@ export default function SignupPage() {
       alert('Account created successfully.')
 
       navigate('/login')
-      
+
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed')
     } finally {

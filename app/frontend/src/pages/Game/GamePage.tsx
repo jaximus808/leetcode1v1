@@ -106,7 +106,7 @@ export default function GamePage() {
   }, [matchId, user]);
 
   const [opponentName, setOpponentName] = useState<string>('Opponent');
-  
+
   useEffect(() => {
     const fetchMatchData = async () => {
       if (!matchId || !user) return;
@@ -188,16 +188,9 @@ export default function GamePage() {
         if (problemData.starter_code_url) {
           const starterCodeResponse = await axios.get(problemData.starter_code_url)
           setStarterCodes(starterCodeResponse.data)
-
-          const problemKey = getProblemKey(problemData.title)
-
-          if (starterCodeResponse.data[problemKey]) {
-            const initialCode = starterCodeResponse.data[problemKey][language]
-            setCode(initialCode || getDefaultStarterCode(language))
-          } else {
-            console.log('Available keys:', Object.keys(starterCodeResponse.data))
-            setCode(getDefaultStarterCode(language))
-          }
+          const problemKey = getProblemKey(problemData.title);
+          const initialCode = starterCodeResponse.data[problemKey]?.[language];
+          setCode(initialCode || getDefaultStarterCode(language))
         } else {
           setCode(getDefaultStarterCode(language))
         }
@@ -209,7 +202,7 @@ export default function GamePage() {
     }
 
     fetchProblemData()
-  }, [problemId, language]) // Add language as dependency
+  }, [problemId])
 
   function getProblemKey(title: string): string {
     // Convert title to match your JSON key format
@@ -223,36 +216,14 @@ export default function GamePage() {
     return key
   }
 
-  const getStarterCodeForLanguage = useCallback((lang: typeof languages[number]['value']): string => {
-    console.log(`🔍 Getting starter code for language: ${lang}`)
-
-    if (!problem || !starterCodes) {
-      return getDefaultStarterCode(lang)
-    }
-
-    const problemKey = getProblemKey(problem.title)
-
-    const problemStarterCodes = starterCodes[problemKey]
-
-    if (!problemStarterCodes) {
-      return getDefaultStarterCode(lang)
-    }
-
-    if (problemStarterCodes[lang]) {
-      return problemStarterCodes[lang]!
-    }
-
-    return getDefaultStarterCode(lang)
-  }, [problem, starterCodes])
-
   function getDefaultStarterCode(lang: typeof languages[number]['value']): string {
     const header = `// Implement solve() below\n`
     switch (lang) {
       case 'python':
-        return `# Implement solve(input) below
+        return `def two_sum(nums, target):
+
 def solve(input):
-    # input is a dict, e.g. {"nums":[...], "target":...}
-    return []
+  return two_sum(input["nums"], input["target"])
 `
       case 'typescript':
         return `${header}function solve(input: any) {
@@ -305,11 +276,22 @@ class Program {
   }
 
   useEffect(() => {
-    if (problem && starterCodes) {
-      const newCode = getStarterCodeForLanguage(language)
-      setCode(newCode)
+    if (!problem || !starterCodes) {
+      setCode(getDefaultStarterCode(language));
+      return;
     }
-  }, [language, problem, starterCodes, getStarterCodeForLanguage])
+
+    const problemKey = getProblemKey(problem.title);
+    const problemStarterCodes = starterCodes[problemKey];
+
+    if (problemStarterCodes && problemStarterCodes[language]) {
+      console.log(`Setting starter code for ${language}`);
+      setCode(problemStarterCodes[language]!);
+    } else {
+      console.log(`No starter code found for ${language}, using default`);
+      setCode(getDefaultStarterCode(language));
+    }
+  }, [language, problem, starterCodes]);
 
   // Timer seeded from query param (defaults to 10)
   const GAME_DURATION_SECONDS = Math.max(1, initialMinutes) * 60
