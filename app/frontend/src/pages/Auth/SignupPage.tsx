@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import './SignupPage.css'
 
 export default function SignupPage() {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const [, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
@@ -34,7 +34,7 @@ export default function SignupPage() {
       alert('Account created successfully.')
 
       navigate('/login')
-      
+
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed')
     } finally {
@@ -61,6 +61,10 @@ export default function SignupPage() {
         <button type="submit" className="auth-submit" onClick={handleSignup} disabled={loading}>
           {loading ? 'Creating account...' : 'Create account'}
         </button>
+        <div style={{ marginTop: 12, textAlign: 'center', color: '#bdbdbd' }}>
+          <span>Already have an account? </span>
+          <Link to="/login" style={{ color: 'var(--gold)', textDecoration: 'none' }}>Log in here</Link>
+        </div>
       </form>
     </div>
   )

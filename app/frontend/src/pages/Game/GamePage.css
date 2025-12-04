@@ -370,3 +370,7 @@
   background: #262626;
   border-color: #3a3a3a;
 }
+
+.progress-fill-you, .progress-fill-op {
+  transition: width 0.3s ease-in-out;
+}

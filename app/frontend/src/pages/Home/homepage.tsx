@@ -6,7 +6,7 @@ import './homepage.css'
 
 export default function HomePage() {
   const navigate = useNavigate()
-  const { user, logout, token } = useAuth()   
+  const { user, logout } = useAuth()   
   const { isSearching, queuePosition, queueEta, findMatch, cancelSearch } = useMatch()
 
   const username = useMemo(() => user?.username ?? 'Player', [user])

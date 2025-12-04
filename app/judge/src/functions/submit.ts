@@ -3,8 +3,15 @@ import { createClient } from "@supabase/supabase-js";
 
 const JUDGE0_URL = process.env.JUDGE0_URL || "http://localhost:2358";
 const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+interface ProgressUpdate {
+  matchId: string;
+  playerId: string;
+  passed: number;
+  total: number;
+}
 
 const LANG: Record<string, number> = {
   javascript: 63,
@@ -20,18 +27,18 @@ function normalize(s: string | null | undefined) {
   return (s ?? "").trim().replace(/\r\n/g, "\n");
 }
 function expectedAsString(t: any) {
-    const v = (t && t.expected !== undefined) ? t.expected : t?.output;
-    return typeof v === "string" ? v : JSON.stringify(v ?? "");
+  const v = (t && t.expected !== undefined) ? t.expected : t?.output;
+  return typeof v === "string" ? v : JSON.stringify(v ?? "");
 }
 function canonicalize(s: string) {
-    const t = (s ?? "").trim();
-    try {
-      // If it's JSON (arrays/objects/numbers/booleans), normalize formatting
-      return JSON.stringify(JSON.parse(t));
-    } catch {
-      // Not JSON -> compare trimmed string as-is
-      return t;
-    }
+  const t = (s ?? "").trim();
+  try {
+    // If it's JSON (arrays/objects/numbers/booleans), normalize formatting
+    return JSON.stringify(JSON.parse(t));
+  } catch {
+    // Not JSON -> compare trimmed string as-is
+    return t;
+  }
 }
 function wrapSource(language: string, user: string) {
   const lang = language.toLowerCase();
@@ -81,7 +88,7 @@ async function runSingleTest(language_id: number, source_code: string, stdin: st
   const text = await res.text();
   let body: any = null;
   try { body = text ? JSON.parse(text) : null; } catch { /* keep raw */ }
-  return { status: res.status, body, raw: text };
+  return { status: res.status, body, raw: text, error: null };
 }
 
 async function getJSONFromStorage(bucket: string, key: string) {
@@ -94,8 +101,8 @@ async function getJSONFromStorage(bucket: string, key: string) {
 
 export async function submit(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   try {
-    const { problemId, language, sourceCode } = await request.json() as {
-      problemId: string; language: string; sourceCode: string;
+    const { problemId, language, sourceCode, matchId, playerId } = await request.json() as {
+      problemId: string; language: string; sourceCode: string; matchId?: string; playerId?: string;
     };
 
     if (!problemId || !language || !sourceCode) {
@@ -130,17 +137,36 @@ export async function submit(request: HttpRequest, context: InvocationContext): 
     let passed = 0;
     const details: Array<Record<string, unknown>> = [];
 
+    const sendProgress = async (currentPassed: number, totalTests: number) => {
+      if (matchId && playerId) {
+        try {
+          await fetch('http://localhost:3000/api/test-progress', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ matchId, playerId, passed: currentPassed, total: totalTests })
+          })
+        } catch (error) {
+          context.error(error);
+        }
+      }
+    };
+
     for (const t of tests) {
       const stdin = JSON.stringify(t.input ?? null);
       const r = await runSingleTest(language_id, program, stdin);
 
       const statusDesc = r.body?.status?.description ?? "Unknown";
+      const stdout = r.body?.stdout ?? "";
+      const stderr = r.body?.stderr ?? "";
+      const compile_output = r.body?.compile_output ?? "";
       const out = canonicalize(r.body?.stdout ?? "");
       const exp = canonicalize(expectedAsString(t));
       const ok = r.status === 201 && statusDesc === "Accepted" && out === exp;
       if (ok) passed++;
-      details.push({ status: statusDesc, ok });
-    
+      details.push({ input: t.input, expected: expectedAsString(t), actual: stdout, compile_output: compile_output, stderr: stderr, time: r.body?.time ?? 0, memory: r.body?.memory ?? 0, status: statusDesc, ok: ok });
+      await sendProgress(passed, tests.length);
     }
 
     const verdict = passed === tests.length ? "Accepted" : "Wrong Answer";

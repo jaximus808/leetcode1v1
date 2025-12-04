@@ -5,7 +5,7 @@ import z from 'zod';
 
 const kafka = new Kafka({
   clientId: 'game-server',
-  brokers: ["localhost:9092"]
+  brokers: [process.env.KAFKA_BROKERS || "kafka-svc:9093"]
 })
 export async function startKafkaClient(roomManager: RoomManager): Promise<Producer> {
   const producer = kafka.producer()

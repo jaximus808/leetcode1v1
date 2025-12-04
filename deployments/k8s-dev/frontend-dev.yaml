@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: lc1v1
+  labels:
+    app: frontend
+    tier: frontend
+    env: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+        tier: frontend
+        env: dev
+    spec:
+      containers:
+      - name: frontend
+        image: lc1v1/frontend:dev
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 5173
+          name: http
+        env:
+        - name: VITE_API_URL
+          value: "http://localhost:30000"
+        - name: VITE_JUDGE_API_URL
+          value: "http://localhost:30002"
+        - name: VITE_WS_URL
+          value: "ws://localhost:30000"
+        - name: VITE_GOOGLE_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: VITE_GOOGLE_CLIENT_ID
+        volumeMounts:
+        - name: source-code
+          mountPath: /app
+          subPath: app/frontend
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: source-code
+        hostPath:
+          path: /hosthome/LC1v1
+          type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: lc1v1
+  labels:
+    app: frontend
+spec:
+  type: NodePort
+  ports:
+  - port: 5173
+    targetPort: 5173
+    nodePort: 30080
+    name: http
+  selector:
+    app: frontend
+

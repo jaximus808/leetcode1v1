@@ -29,8 +29,9 @@ function MakeSocketIOInstance(app) {
 
   const io = new Server(server, {
     cors: {
-      origin: 'http://localhost:5173',
-      credentials: true
+      origin: true, // Allow all origins for development
+      credentials: true,
+      methods: ['GET', 'POST']
     }
   });
 
@@ -40,6 +41,18 @@ function MakeSocketIOInstance(app) {
 
     console.log('User connected:', socket.id);
 
+    socket.on('join', (room) => {
+      socket.join(room);
+      console.log(`Socket ${socket.id} joined room: ${room}`);
+    });
+
+    socket.on('join_room', (data) => {
+      const { roomCode, userId, username } = data;
+      if (roomCode) {
+        socket.join(`room:${roomCode}`);
+        console.log(`Player ${userId} (${username}) joined room:${roomCode}`);
+      }
+    });
 
     /*
       * matchReq : {
@@ -76,7 +89,7 @@ function MakeSocketIOInstance(app) {
         return res.status(404).json({ message: 'Player not found' });
       }
       try {
-        
+
         /// uhhh i thought they request the difficulty and is speerate from time mapped
         // oops wait nvm this was a mistake with my engine lol - Jaxon
         // const timeMapping = {
@@ -86,7 +99,7 @@ function MakeSocketIOInstance(app) {
         // }
 
         // const mappedTime = timeMapping[time] || 'easy';
-        
+
         await producer.send({
           topic: 'match-requests',
           messages: [{
@@ -106,9 +119,9 @@ function MakeSocketIOInstance(app) {
 
         console.log(`Player ${playerID} joined room: player-${playerID}`);
         console.log(`Player ${socket.id} is now in rooms:`, Array.from(socket.rooms));
-        
+
         console.log(`Player ${playerID} sent to matchmaking queue`);
-        socket.emit('joined-queue')
+        socket.emit('joined-queue', { message: 'You are now in queue', status: 'joined queue', position: null, eta: null })
       } catch (error) {
         socket.emit('queue-error', { msg: "not authorized" });
       }
@@ -150,7 +163,7 @@ function MakeSocketIOInstance(app) {
       cancelQueue()
     });
   });
-  return {io, server}
+  return { io, server }
 }
 
 module.exports = MakeSocketIOInstance;

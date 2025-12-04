@@ -5,7 +5,7 @@ const multer = require('multer'); // For handling file uploads
 const crypto = require('crypto'); // For unique filenames
 
 // Configure multer for memory storage
-const upload = multer({ 
+const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
@@ -136,7 +136,15 @@ router.get('/:problemId', async (req, res) => {
       return res.status(404).json({ message: 'Problem not found' });
     }
 
+    if (data.starter_code_path) {
+      const { data: urlData } = supabase.storage
+        .from('starter-code')
+        .getPublicUrl(data.starter_code_path);
+      data.starter_code_url = urlData.publicUrl;
+    }
+
     res.json(data);
+
   } catch (err) {
     res.status(500).json({ message: 'Error fetching problem', error: err.message });
   }

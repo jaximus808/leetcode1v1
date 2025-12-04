@@ -10,6 +10,11 @@ import { startKafkaClient } from './kafka/kafka';
 
 const app = express()
 
+// Health check endpoint for Kubernetes
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', service: 'gameserver' });
+});
+
 const { httpServer, io } = InitSocket(app)
 
 const PORT = process.env.PORT || 4000;
