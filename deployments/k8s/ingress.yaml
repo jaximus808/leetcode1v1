@@ -1,0 +1,47 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lc1v1-ingress
+  namespace: lc1v1
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/websocket-services: "backend-api,gameserver"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: lc1v1.local
+    http:
+      paths:
+      - path: /api(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: backend-api
+            port:
+              number: 3000
+      - path: /game(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: gameserver
+            port:
+              number: 4000
+      - path: /judge(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: judge
+            port:
+              number: 7071
+      - path: /()(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 80
+

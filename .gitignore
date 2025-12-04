@@ -7,3 +7,30 @@ package-lock.json
 Thumbs.db
 *.log
 npm-debug.log*
+
+# Kubernetes - Secrets (contains sensitive credentials)
+deployments/k8s/secrets.yaml
+
+# Temporary judge implementations (keep only express-server.js)
+app/judge/simple-server.js
+app/judge/judge0-proxy.js
+app/judge/Dockerfile.simple
+app/judge/Dockerfile.proxy
+
+# Minikube local data
+.minikube/
+
+# Docker build artifacts
+**/.dockerignore
+
+# Alternative Kafka configs (backups)
+deployments/k8s/kafka-simple.yaml
+deployments/k8s/kafka-minimal.yaml
+deployments/k8s/kafka-no-pvc.yaml
+deployments/k8s/kafka-working.yaml
+
+# Terminal logs
+.cursor/projects/*/terminals/
+
+# Build artifacts
+scripts/build-images-simple.ps1

@@ -3,87 +3,32 @@ package broker
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"time"
 
-	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
+	"github.com/segmentio/kafka-go"
 	"github.com/cse4207-fall-2025/finalproject-jujujaju/app/matchmaker/internal/game"
 )
 
 type KafkaConsumer struct {
-	consumer *kafka.Consumer
-}
-
-func createTopicsIfNotExist(brokers string, topics []string) error {
-	adminClient, err := kafka.NewAdminClient(&kafka.ConfigMap{
-		"bootstrap.servers": brokers,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create admin client: %w", err)
-	}
-	defer adminClient.Close()
-
-	// Prepare topic specifications
-	var topicSpecs []kafka.TopicSpecification
-	for _, topic := range topics {
-		topicSpecs = append(topicSpecs, kafka.TopicSpecification{
-			Topic:             topic,
-			NumPartitions:     1,
-			ReplicationFactor: 1,
-		})
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	results, err := adminClient.CreateTopics(
-		ctx,
-		topicSpecs,
-		kafka.SetAdminOperationTimeout(10*time.Second),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create topics: %w", err)
-	}
-
-	// Check results
-	for _, result := range results {
-		if result.Error.Code() != kafka.ErrNoError && result.Error.Code() != kafka.ErrTopicAlreadyExists {
-			log.Printf("Failed to create topic %s: %v", result.Topic, result.Error)
-		} else {
-			log.Printf("Topic %s ready", result.Topic)
-		}
-	}
-
-	return nil
+	reader *kafka.Reader
 }
 
 func CreateKafkaConsumer(brokers string, groupID string, topics []string) (*KafkaConsumer, error) {
-	err := createTopicsIfNotExist(brokers, topics)
-	if err != nil {
-		log.Printf("Warning: failed to create topics: %v", err)
-		// Continue anyway - topics might already exist or auto-create might be enabled
-	}
+	// Kafka-go will auto-create topics if configured on the broker
+	// No need for admin client in simple setup
 
-	config := &kafka.ConfigMap{
-		"bootstrap.servers":  brokers,
-		"group.id":           groupID,
-		"auto.offset.reset":  "earliest",
-		"enable.auto.commit": false,
-	}
+	reader := kafka.NewReader(kafka.ReaderConfig{
+		Brokers:        []string{brokers},
+		GroupID:        groupID,
+		Topic:          topics[0], // kafka-go Reader handles one topic
+		MinBytes:       10e3,      // 10KB
+		MaxBytes:       10e6,      // 10MB
+		CommitInterval: time.Second,
+		StartOffset:    kafka.FirstOffset,
+	})
 
-	consumer, err := kafka.NewConsumer(config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create consumer: %w", err)
-	}
-
-	err = consumer.SubscribeTopics(topics, nil)
-	if err != nil {
-		consumer.Close()
-		return nil, fmt.Errorf("failed to subscribe to topics: %w", err)
-	}
-
-	return &KafkaConsumer{consumer: consumer}, nil
+	return &KafkaConsumer{reader: reader}, nil
 }
 
 func (kc *KafkaConsumer) ConsumeMessages(ctx context.Context, handler func(*game.MatchRequest) error) error {
@@ -92,13 +37,14 @@ func (kc *KafkaConsumer) ConsumeMessages(ctx context.Context, handler func(*game
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			msg, err := kc.consumer.ReadMessage(100 * time.Millisecond)
+			msg, err := kc.reader.ReadMessage(ctx)
 			if err != nil {
-				// Timeout is not an error, just means no message
-				if err.(kafka.Error).Code() == kafka.ErrTimedOut {
-					continue
+				if err == context.Canceled || err == context.DeadlineExceeded {
+					return err
 				}
-				return fmt.Errorf("consumer error: %w", err)
+				log.Printf("Consumer error: %v\n", err)
+				time.Sleep(time.Second) // Back off on error
+				continue
 			}
 
 			// Parse the message
@@ -109,6 +55,7 @@ func (kc *KafkaConsumer) ConsumeMessages(ctx context.Context, handler func(*game
 				continue
 			}
 			request.Timestamp = time.Now().Unix()
+
 			// Process the message
 			err = handler(&request)
 			if err != nil {
@@ -116,16 +63,14 @@ func (kc *KafkaConsumer) ConsumeMessages(ctx context.Context, handler func(*game
 				continue
 			}
 
-			// Commit the offset after successful processing
-			_, err = kc.consumer.CommitMessage(msg)
-			if err != nil {
-				log.Printf("Failed to commit offset: %v\n", err)
-			}
+			// Message is auto-committed by the reader based on CommitInterval
 		}
 	}
 }
 
 // Close closes the consumer
 func (kc *KafkaConsumer) Close() {
-	kc.consumer.Close()
+	if err := kc.reader.Close(); err != nil {
+		log.Printf("Failed to close reader: %v", err)
+	}
 }

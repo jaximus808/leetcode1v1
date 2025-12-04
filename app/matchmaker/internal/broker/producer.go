@@ -1,93 +1,85 @@
 package broker
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"time"
 
-	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
+	"github.com/segmentio/kafka-go"
 	"github.com/cse4207-fall-2025/finalproject-jujujaju/app/matchmaker/internal/config"
 	"github.com/cse4207-fall-2025/finalproject-jujujaju/app/matchmaker/internal/game"
 )
 
 type KafkaProducer struct {
-	producer *kafka.Producer
+	writer *kafka.Writer
 }
 
 func CreateKafkaProducer(brokers string) (*KafkaProducer, error) {
-	config := &kafka.ConfigMap{
-		"bootstrap.servers": brokers,
-		"client.id":         "matchmaker-producer",
-		"acks":              "all", // Wait for all replicas
+	writer := &kafka.Writer{
+		Addr:         kafka.TCP(brokers),
+		Balancer:     &kafka.LeastBytes{},
+		RequiredAcks: kafka.RequireAll,
+		Async:        false, // Synchronous writes for reliability
 	}
 
-	producer, err := kafka.NewProducer(config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create producer: %w", err)
-	}
-	go func() {
-		for e := range producer.Events() {
-			switch ev := e.(type) {
-			case *kafka.Message:
-				if ev.TopicPartition.Error != nil {
-					log.Printf("Delivery failed: %v\n", ev.TopicPartition.Error)
-				} else {
-					log.Printf("Delivered message to %v\n", ev.TopicPartition)
-				}
-			}
-		}
-	}()
-
-	return &KafkaProducer{producer: producer}, nil
+	return &KafkaProducer{writer: writer}, nil
 }
 
 func (kp *KafkaProducer) PublishUpdate(update *game.QueueUpdates) error {
 	data, err := json.Marshal(update)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal data %s", err.Error())
+		return fmt.Errorf("failed to marshal data: %w", err)
 	}
 
-	msg := &kafka.Message{
-		TopicPartition: kafka.TopicPartition{
-			Topic:     &config.TopicQueueUpdate,
-			Partition: kafka.PartitionAny,
-		},
+	msg := kafka.Message{
+		Topic: config.TopicQueueUpdate,
 		Key:   []byte(update.PlayerID),
 		Value: data,
+		Time:  time.Now(),
 	}
 
-	err = kp.producer.Produce(msg, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	err = kp.writer.WriteMessages(ctx, msg)
 	if err != nil {
-		return fmt.Errorf("failed to produce message: %s", err.Error())
+		return fmt.Errorf("failed to produce message: %w", err)
 	}
+
+	log.Printf("Published queue update for player %s", update.PlayerID)
 	return nil
 }
 
 func (kp *KafkaProducer) PublishMatch(match *game.MatchBatch) error {
 	data, err := json.Marshal(match)
 	if err != nil {
-		return fmt.Errorf("failed to marshal data %s", err.Error())
-	}
-	key := fmt.Sprintf("batch-%d", time.Now().Unix())
-	msg := &kafka.Message{
-		TopicPartition: kafka.TopicPartition{
-			Topic:     &config.TopicMatchFound,
-			Partition: kafka.PartitionAny,
-		},
-		Key:   []byte(key),
-		Value: data,
+		return fmt.Errorf("failed to marshal data: %w", err)
 	}
 
-	err = kp.producer.Produce(msg, nil)
-	if err != nil {
-		return fmt.Errorf("failed to produce message: %s", err.Error())
+	key := fmt.Sprintf("batch-%d", time.Now().Unix())
+	msg := kafka.Message{
+		Topic: config.TopicMatchFound,
+		Key:   []byte(key),
+		Value: data,
+		Time:  time.Now(),
 	}
-	return err
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	err = kp.writer.WriteMessages(ctx, msg)
+	if err != nil {
+		return fmt.Errorf("failed to produce message: %w", err)
+	}
+
+	log.Printf("Published match batch with %d groups", len(match.Groups))
+	return nil
 }
 
 func (kp *KafkaProducer) Close() {
-	// Wait for outstanding messages to be delivered
-	kp.producer.Flush(15 * 1000) // 15 seconds
-	kp.producer.Close()
+	if err := kp.writer.Close(); err != nil {
+		log.Printf("Failed to close writer: %v", err)
+	}
 }

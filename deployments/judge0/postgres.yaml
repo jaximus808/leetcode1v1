@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: judge0-postgres
+  namespace: judge0
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: judge0-postgres
+  template:
+    metadata:
+      labels:
+        app: judge0-postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "judge0"
+        - name: POSTGRES_USER
+          value: "judge0"
+        - name: POSTGRES_PASSWORD
+          value: "judge0"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: judge0-postgres-postgresql
+  namespace: judge0
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+  selector:
+    app: judge0-postgres
+
+

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { useAuth } from './AuthContext' //replace with actual auth
 import { io, Socket } from 'socket.io-client'
@@ -51,7 +51,7 @@ interface MatchContextType {
 const MatchContext = createContext<MatchContextType | undefined>(undefined)
 
 export function MatchProvider({ children }: { children: ReactNode }) {
-  const [currentMatch, setCurrentMatch] = useState<Match | null>(null)
+  const [currentMatch] = useState<Match | null>(null)
   const [isSearching, setIsSearching] = useState(false)
   const [socket, setSocket] = useState<Socket | null>(null)
   const [queuePosition, setQueuePosition] = useState<number | null>(null)
@@ -69,11 +69,8 @@ export function MatchProvider({ children }: { children: ReactNode }) {
 
   // Request a match
   const findMatch = async (difficulty: string, timeLimit: number) => {
-    console.log('🔐 Token:', token);
-    console.log('👤 User:', user);
-
     if (!token || !user || isSearching) return
-    console.error('Missing token or user, or already searching');
+
     try {
 
       const newSocket = io('http://localhost:3000', {

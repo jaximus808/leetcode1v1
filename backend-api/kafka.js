@@ -3,7 +3,7 @@ const supabase = require('./supabase');
 
 const kafka = new Kafka({
   clientId: "backend-api",
-  brokers: ["localhost:9092"],   // our Kafka broker
+  brokers: [process.env.KAFKA_BROKERS || "kafka-svc:9093"],
   connectionTimeout: 10000,
   requestTimeout: 30000
 });

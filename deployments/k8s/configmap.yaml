@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: lc1v1
+data:
+  # Kafka settings
+  KAFKA_BROKERS: "kafka-svc:9093"
+  
+  # Redis settings
+  REDIS_URL: "redis://redis:6379"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  
+  # Service endpoints (internal)
+  BACKEND_API_URL: "http://backend-api:3000"
+  GAMESERVER_URL: "http://gameserver:4000"
+  JUDGE_URL: "http://judge:7071"
+  
+  # Environment
+  NODE_ENV: "production"
+  RAILS_ENV: "production"
+  
+  # Frontend environment variables (injected at runtime)
+  VITE_API_URL: "http://localhost:3000"
+  VITE_JUDGE_API_URL: "http://localhost:7071"
+  VITE_WS_URL: "ws://localhost:3000"
+

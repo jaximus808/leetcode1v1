@@ -1,0 +1,22 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install ts-node and nodemon
+RUN npm install -g ts-node nodemon
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies
+RUN npm install
+
+# Expose port
+EXPOSE 7071
+
+ENV AzureWebJobsScriptRoot=/app
+
+# Start with ts-node for hot-reload
+CMD ["npm", "run", "watch"]
+
+

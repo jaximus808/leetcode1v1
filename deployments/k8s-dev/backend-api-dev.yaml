@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-api
+  namespace: lc1v1
+  labels:
+    app: backend-api
+    tier: backend
+    env: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend-api
+  template:
+    metadata:
+      labels:
+        app: backend-api
+        tier: backend
+        env: dev
+    spec:
+      initContainers:
+      - name: wait-for-kafka
+        image: busybox:1.35
+        command: 
+        - 'sh'
+        - '-c'
+        - 'until nc -z kafka 9093; do echo waiting for kafka; sleep 2; done;'
+      containers:
+      - name: backend-api
+        image: lc1v1/backend-api:dev
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+        - name: PORT
+          value: "3000"
+        - name: NODE_ENV
+          value: "development"
+        envFrom:
+        - configMapRef:
+            name: app-config
+        - secretRef:
+            name: app-secrets
+        volumeMounts:
+        - name: source-code
+          mountPath: /app
+          subPath: backend-api
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: source-code
+        hostPath:
+          path: /hosthome/LC1v1
+          type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-api
+  namespace: lc1v1
+  labels:
+    app: backend-api
+spec:
+  type: NodePort
+  ports:
+  - port: 3000
+    targetPort: 3000
+    nodePort: 30000
+    name: http
+  selector:
+    app: backend-api
+

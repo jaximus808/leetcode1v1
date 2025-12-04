@@ -29,8 +29,9 @@ function MakeSocketIOInstance(app) {
 
   const io = new Server(server, {
     cors: {
-      origin: 'http://localhost:5173',
-      credentials: true
+      origin: true, // Allow all origins for development
+      credentials: true,
+      methods: ['GET', 'POST']
     }
   });
 
@@ -120,7 +121,7 @@ function MakeSocketIOInstance(app) {
         console.log(`Player ${socket.id} is now in rooms:`, Array.from(socket.rooms));
 
         console.log(`Player ${playerID} sent to matchmaking queue`);
-        socket.emit('joined-queue', { message: 'You are now in queue' , status: 'joined queue', position: null, eta: null })
+        socket.emit('joined-queue', { message: 'You are now in queue', status: 'joined queue', position: null, eta: null })
       } catch (error) {
         socket.emit('queue-error', { msg: "not authorized" });
       }

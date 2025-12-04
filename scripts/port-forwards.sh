@@ -1,0 +1,22 @@
+#!/bin/bash
+
+echo "Setting up port forwards for LC1v1..."
+echo "Keep these terminals open!"
+echo ""
+echo "Run these commands in separate terminals:"
+echo ""
+echo "Terminal 1 - Frontend:"
+echo "  minikube service frontend -n lc1v1"
+echo ""
+echo "Terminal 2 - Backend API:"
+echo "  kubectl port-forward -n lc1v1 svc/backend-api 3000:3000"
+echo ""
+echo "Terminal 3 - Gameserver:"
+echo "  kubectl port-forward -n lc1v1 svc/gameserver 4000:4000"
+echo ""
+echo "Terminal 4 - Judge:"
+echo "  kubectl port-forward -n lc1v1 svc/judge 7071:7071"
+echo ""
+echo "Optional - Judge0 API:"
+echo "  kubectl port-forward -n judge0 svc/judge0-api 2358:2358"
+

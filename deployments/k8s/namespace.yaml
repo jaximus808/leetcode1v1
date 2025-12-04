@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lc1v1
+  labels:
+    name: lc1v1
+    environment: local
+

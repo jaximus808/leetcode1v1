@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gameserver
+  namespace: lc1v1
+  labels:
+    app: gameserver
+    tier: backend
+    env: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gameserver
+  template:
+    metadata:
+      labels:
+        app: gameserver
+        tier: backend
+        env: dev
+    spec:
+      initContainers:
+      - name: wait-for-redis
+        image: busybox:1.35
+        command:
+        - 'sh'
+        - '-c'
+        - 'until nc -z redis 6379; do echo waiting for redis; sleep 2; done;'
+      - name: wait-for-kafka
+        image: busybox:1.35
+        command:
+        - 'sh'
+        - '-c'
+        - 'until nc -z kafka 9093; do echo waiting for kafka; sleep 2; done;'
+      containers:
+      - name: gameserver
+        image: lc1v1/gameserver:dev
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 4000
+          name: http
+        env:
+        - name: PORT
+          value: "4000"
+        - name: NODE_ENV
+          value: "development"
+        envFrom:
+        - configMapRef:
+            name: app-config
+        - secretRef:
+            name: app-secrets
+        volumeMounts:
+        - name: source-code
+          mountPath: /app
+          subPath: app/gameserver
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: source-code
+        hostPath:
+          path: /hosthome/LC1v1
+          type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gameserver
+  namespace: lc1v1
+  labels:
+    app: gameserver
+spec:
+  type: NodePort
+  ports:
+  - port: 4000
+    targetPort: 4000
+    nodePort: 30001
+    name: http
+  selector:
+    app: gameserver
+

@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: judge
+  namespace: lc1v1
+  labels:
+    app: judge
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: judge
+  template:
+    metadata:
+      labels:
+        app: judge
+        tier: backend
+    spec:
+      containers:
+      - name: judge
+        image: lc1v1/judge:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 7071
+          name: http
+        env:
+        - name: AzureWebJobsScriptRoot
+          value: "/app"
+        envFrom:
+        - configMapRef:
+            name: app-config
+        - secretRef:
+            name: app-secrets
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: judge
+  namespace: lc1v1
+  labels:
+    app: judge
+spec:
+  type: NodePort
+  ports:
+  - port: 7071
+    targetPort: 7071
+    nodePort: 30002
+    name: http
+  selector:
+    app: judge
+

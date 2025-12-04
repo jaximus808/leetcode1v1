@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: matchmaker
+  namespace: lc1v1
+  labels:
+    app: matchmaker
+    tier: backend
+    env: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: matchmaker
+  template:
+    metadata:
+      labels:
+        app: matchmaker
+        tier: backend
+        env: dev
+    spec:
+      initContainers:
+      - name: wait-for-kafka
+        image: busybox:1.35
+        command:
+        - 'sh'
+        - '-c'
+        - 'until nc -z kafka 9093; do echo waiting for kafka; sleep 2; done;'
+      containers:
+      - name: matchmaker
+        image: lc1v1/matchmaker:dev
+        imagePullPolicy: Never
+        envFrom:
+        - configMapRef:
+            name: app-config
+        - secretRef:
+            name: app-secrets
+        volumeMounts:
+        - name: source-code
+          mountPath: /app
+          subPath: app/matchmaker
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+      volumes:
+      - name: source-code
+        hostPath:
+          path: /hosthome/LC1v1
+          type: Directory
+

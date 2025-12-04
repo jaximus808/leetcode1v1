@@ -11,8 +11,34 @@ const app = express()
 const { io, server } = MakeSocketIOInstance(app)
 app.set('io', io)
 
+// CORS configuration - allow multiple origins for Kubernetes
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:8080',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:8080',
+  /^http:\/\/127\.0\.0\.1:\d+$/,  // Any localhost port
+  /^http:\/\/192\.168\.\d+\.\d+:\d+$/,  // Minikube IPs
+];
+
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list or matches regex
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') return allowed === origin;
+      return allowed.test(origin);
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(null, true); // Allow anyway for development
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true

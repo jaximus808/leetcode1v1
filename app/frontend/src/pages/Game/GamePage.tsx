@@ -53,8 +53,8 @@ export default function GamePage() {
 
   const [myProgress, setMyProgress] = useState<TestProgress>({ passed: 0, total: 0 });
   const [opponentProgress, setOpponentProgress] = useState<TestProgress>({ passed: 0, total: 0 });
-  const [gameSocket, setGameSocket] = useState<Socket | null>(null);
-  const [totalTests, setTotalTests] = useState<number>(0);
+  const [, setGameSocket] = useState<Socket | null>(null);
+  const [, setTotalTests] = useState<number>(0);
   const { user } = useAuth()
 
   const [gameOver, setGameOver] = useState(false);
@@ -114,8 +114,6 @@ export default function GamePage() {
       try {
         const response = await axios.get(`http://localhost:3000/api/matches/${matchId}`);
         const matchData = response.data;
-
-        const opponentId = matchData.player1_id === user.id ? matchData.player2_id : matchData.player1_id;
 
         const opponentUsername = matchData.player1_id === user.id ? matchData.player2.username : matchData.player1.username;
 
